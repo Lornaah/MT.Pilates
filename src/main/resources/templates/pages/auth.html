@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<body>
+<th:block layout:fragment="content">
+<!--/*
+  Page /auth de l'original. Email et mot de passe sont partagés entre les deux onglets, comme dans l'original.
+  « Se souvenir de moi » ne mémorise que l'email, dans le navigateur (clé mt_remember_email).
+*/-->
+<div class="min-h-screen bg-gradient-soft flex animate-page-enter"
+     th:attr="x-data=|authPage({ email: '${#strings.escapeJavaScript(email != null ? email : '')}', unconfirmedEmail: '${#strings.escapeJavaScript(unconfirmedEmail != null ? unconfirmedEmail : '')}' })|"
+     @registered.window="tab = 'login'">
+  <aside class="hidden lg:flex flex-1 text-white p-12 flex-col justify-between relative overflow-hidden"
+         th:style="|background-image: url(@{/images/auth-bg.jpg}); background-size: cover; background-position: center;|">
+    <div class="absolute inset-0 bg-black/40"></div>
+    <a th:href="@{/}" class="flex items-center gap-2 z-10">
+      <div class="h-9 w-9 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center">
+        <img th:src="@{/images/logo-icon.png}" alt="MT Pilates" class="h-5 w-5 object-contain">
+      </div>
+      <div>
+        <div class="font-display text-xl leading-none">MT Pilates</div>
+        <div class="text-[10px] uppercase tracking-[0.2em] opacity-70 mt-1">Coach Pilates</div>
+      </div>
+    </a>
+    <div class="relative z-10 max-w-md">
+      <h1 class="font-display text-5xl leading-tight mb-6">
+        Le souffle, le mouvement, le <em class="italic font-light">calme.</em>
+      </h1>
+      <p class="opacity-85 leading-relaxed">
+        Retrouvez votre espace personnel, vos séances, votre planning et le suivi de votre coach.
+      </p>
+    </div>
+    <div class="text-xs opacity-60 z-10">© MT Pilates</div>
+  </aside>
+
+  <div class="flex-1 flex items-center justify-center p-6">
+    <div class="w-full max-w-md">
+      <a th:href="@{/}" class="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8">
+        <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4 mr-2')}"></th:block> Retour à l'accueil
+      </a>
+
+      <h2 class="font-display text-3xl mb-2">Bonjour</h2>
+      <p class="text-muted-foreground mb-8">Connectez-vous à votre espace MT Pilates</p>
+
+      <div class="tabs w-full">
+        <nav role="tablist" aria-orientation="horizontal" class="grid w-full grid-cols-2 mb-6">
+          <button type="button" role="tab" id="tab-login" :aria-selected="tab === 'login'" @click="tab = 'login'">Connexion</button>
+          <button type="button" role="tab" id="tab-signup" :aria-selected="tab === 'signup'" @click="tab = 'signup'">Créer un compte</button>
+        </nav>
+
+        <div role="tabpanel" aria-labelledby="tab-login" x-show="tab === 'login'">
+          <form method="post" th:action="@{/auth/login}" class="space-y-4" novalidate @submit="rememberEmail(); loading = true">
+            <div class="space-y-2">
+              <label class="label" for="login-email">Email</label>
+              <input class="input" id="login-email" name="email" type="email" autocomplete="email" required x-model="email">
+            </div>
+            <div class="space-y-2">
+              <label class="label" for="login-password">Mot de passe</label>
+              <div class="relative">
+                <input class="input pr-10" id="login-password" name="password" :type="showPassword ? 'text' : 'password'"
+                       autocomplete="current-password" required x-model="password">
+                <button type="button" @click="showPassword = !showPassword"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+                  <span x-show="!showPassword" th:utext="${icons.svg('eye', 'h-4 w-4')}"></span>
+                  <span x-show="showPassword" x-cloak th:utext="${icons.svg('eye-off', 'h-4 w-4')}"></span>
+                </button>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input class="input" id="remember" type="checkbox" x-model="rememberMe">
+              <label class="label text-sm leading-5 font-normal cursor-pointer" for="remember">Se souvenir de moi</label>
+            </div>
+            <button type="submit" class="btn w-full" data-variant="hero" data-size="lg" :disabled="loading">
+              <span x-show="loading" x-cloak th:utext="${icons.svg('loader-circle', 'h-4 w-4 animate-spin')}"></span>
+              Se connecter
+            </button>
+            <div x-show="unconfirmedEmail && email === unconfirmedEmail" x-cloak
+                 class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p class="mb-2">L'email <strong x-text="unconfirmedEmail"></strong> n'a pas encore été confirmé.</p>
+              <button type="button" class="btn" data-variant="outline" data-size="sm"
+                      hx-post="/auth/resend" hx-swap="none" :hx-vals="JSON.stringify({ email: unconfirmedEmail })">
+                Renvoyer l'email de confirmation
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div role="tabpanel" aria-labelledby="tab-signup" x-show="tab === 'signup'" x-cloak>
+          <form hx-post="/auth/signup" hx-swap="none" class="space-y-4 group" novalidate>
+            <div class="space-y-2">
+              <label class="label" for="signup-email">Email</label>
+              <input class="input" id="signup-email" name="email" type="email" autocomplete="email" required x-model="email">
+            </div>
+            <div class="space-y-2">
+              <label class="label" for="signup-password">Mot de passe</label>
+              <div class="relative">
+                <input class="input pr-10" id="signup-password" name="password" :type="showPassword ? 'text' : 'password'"
+                       autocomplete="new-password" required x-model="password">
+                <button type="button" @click="showPassword = !showPassword"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+                  <span x-show="!showPassword" th:utext="${icons.svg('eye', 'h-4 w-4')}"></span>
+                  <span x-show="showPassword" x-cloak th:utext="${icons.svg('eye-off', 'h-4 w-4')}"></span>
+                </button>
+              </div>
+              <!--/* PasswordStrengthMeter : retour visuel seulement, la règle fait foi côté serveur. */-->
+              <div class="space-y-2" aria-live="polite">
+                <div class="h-1 w-full rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuemin="0"
+                     aria-valuemax="5" :aria-valuenow="passed" aria-label="Force du mot de passe">
+                  <div class="h-full transition-all duration-200"
+                       :class="passed === 5 ? 'bg-emerald-500' : (passed / 5 >= 0.6 ? 'bg-amber-500' : 'bg-rose-500')"
+                       :style="`width: ${password.length === 0 ? 0 : Math.max(passed / 5 * 100, 8)}%`"></div>
+                </div>
+                <ul class="space-y-1 text-xs">
+                  <template x-for="rule in rules" :key="rule.key">
+                    <li class="flex items-center gap-2" :class="checks[rule.key] ? 'text-emerald-600' : 'text-muted-foreground'">
+                      <span x-show="checks[rule.key]" th:utext="${icons.svg('check', 'h-3 w-3')}"></span>
+                      <span x-show="!checks[rule.key]" th:utext="${icons.svg('x', 'h-3 w-3')}"></span>
+                      <span x-text="rule.label"></span>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+            <button type="submit" class="btn w-full" data-variant="hero" data-size="lg">
+              <span class="hidden group-[.htmx-request]:inline" th:utext="${icons.svg('loader-circle', 'h-4 w-4 animate-spin')}"></span>
+              Créer mon compte
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</th:block>
+</body>
+</html>

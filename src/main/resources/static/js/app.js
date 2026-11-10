@@ -110,6 +110,45 @@ document.addEventListener("alpine:init", () => {
     today() { this.pick(new Date()); },
   }));
 
+  // Page /auth : onglets, email partagé, « Se souvenir de moi » (email seul, comme l'original) et jauge du mot de passe.
+  const REMEMBER_KEY = "mt_remember_email";
+  const storage = {
+    get: () => { try { return localStorage.getItem(REMEMBER_KEY); } catch (e) { return null; } },
+    set: (v) => { try { localStorage.setItem(REMEMBER_KEY, v); } catch (e) { /* stockage indisponible */ } },
+    clear: () => { try { localStorage.removeItem(REMEMBER_KEY); } catch (e) { /* stockage indisponible */ } },
+  };
+  Alpine.data("authPage", ({ email = "", unconfirmedEmail = "" } = {}) => ({
+    tab: "login",
+    email: email || storage.get() || "",
+    password: "",
+    rememberMe: storage.get() !== null,
+    showPassword: false,
+    loading: false,
+    unconfirmedEmail,
+    rules: [
+      { key: "length", label: "24 caractères ou plus" },
+      { key: "lower", label: "Une lettre minuscule (a-z)" },
+      { key: "upper", label: "Une lettre majuscule (A-Z)" },
+      { key: "digit", label: "Un chiffre (0-9)" },
+      { key: "special", label: "Un caractère spécial (! @ # $ % …)" },
+    ],
+    get checks() {
+      const pw = this.password;
+      return {
+        length: pw.length >= 24 && pw.length <= 72,
+        lower: /[a-z]/.test(pw),
+        upper: /[A-Z]/.test(pw),
+        digit: /\d/.test(pw),
+        special: /[^A-Za-z0-9]/.test(pw),
+      };
+    },
+    get passed() { return Object.values(this.checks).filter(Boolean).length; },
+    rememberEmail() {
+      const normalized = this.email.trim().toLowerCase();
+      if (this.rememberMe) storage.set(normalized); else storage.clear();
+    },
+  }));
+
   // Saisie de tags (TagInput de l'original) : Entrée ou « + » ajoute, la croix retire.
   Alpine.data("tagInput", (initial = []) => ({
     tags: [...initial],

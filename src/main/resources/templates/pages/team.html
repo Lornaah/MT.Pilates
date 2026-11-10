@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Équipe — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Administration', 'Équipe', 'Gère les rôles et permissions de ton équipe : coachs, setters, closers et managers.', null, null, null, null)}"></div>
+
+  <div class="container py-6 space-y-4">
+    <form id="team-filters" class="flex flex-col sm:flex-row gap-2"
+          hx-get="/app/admin/team" hx-target="#team-list" hx-swap="outerHTML" hx-trigger="input changed delay:200ms from:#team-search, change from:#team-role"
+          onsubmit="return false">
+      <input id="team-search" class="input flex-1" type="search" name="q" th:value="${q}"
+             placeholder="Rechercher par nom ou email…" aria-label="Rechercher par nom ou email">
+      <select id="team-role" class="select w-full sm:w-56" name="role" aria-label="Filtrer par rôle">
+        <option value="all" th:selected="${role == 'all'}">Tous les rôles</option>
+        <option th:each="option : ${roleOptions}" th:value="${option.key.code()}" th:text="${option.value}"
+                th:selected="${role == option.key.code()}"></option>
+      </select>
+    </form>
+
+    <div th:fragment="list" id="team-list">
+      <th:block th:if="${members.isEmpty()}">
+        <div th:replace="~{fragments/ui/components :: emptyState('shield', #{team.empty.title}, #{team.empty.message}, null)}"></div>
+      </th:block>
+      <div th:unless="${members.isEmpty()}" class="card overflow-hidden">
+        <div class="divide-y">
+          <div th:each="member : ${members}" class="px-4 py-3 grid grid-cols-[40px_1fr_auto] gap-3 items-center">
+            <th:block th:replace="~{fragments/ui/components :: userAvatar(null, ${member.initial()}, 'sm')}"></th:block>
+            <div class="min-w-0 space-y-2">
+              <div>
+                <div class="text-sm font-medium truncate" th:text="${member.displayName()}"></div>
+                <div class="text-xs text-muted-foreground truncate" th:text="${member.email()}"></div>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <span th:each="badge : ${member.roles()}" class="badge rounded-full inline-flex items-center gap-1"
+                      th:attr="data-variant=${badge.variant()}">
+                  <th:block th:text="${badge.label()}"></th:block>
+                  <th:block th:if="${badge.removable()}"
+                            th:with="dialogId=|remove-${member.id()}-${badge.code()}|">
+                    <button type="button" class="ml-0.5 -mr-1 hover:text-destructive"
+                            th:attr="aria-label=|Retirer ${badge.label()}|, data-dialog=${dialogId}"
+                            onclick="document.getElementById(this.dataset.dialog).showModal()"
+                            th:utext="${icons.svg('trash-2', 'h-3 w-3')}"></button>
+                    <dialog class="alert-dialog text-foreground font-normal" th:id="${dialogId}">
+                      <div>
+                        <header>
+                          <h2 th:text="|Retirer « ${badge.label()} » ?|"></h2>
+                          <p>L'utilisateur perdra immédiatement les accès liés à ce rôle.</p>
+                        </header>
+                        <footer>
+                          <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                          <button type="button" class="btn bg-destructive text-destructive-foreground hover:bg-destructive/90" data-variant="default"
+                                  th:attr="hx-delete=@{/app/admin/team/{id}/roles/{role}(id=${member.id()}, role=${badge.code()})}"
+                                  hx-target="#team-list" hx-swap="outerHTML" hx-include="#team-filters"
+                                  onclick="this.closest('dialog').close()">Retirer</button>
+                        </footer>
+                      </div>
+                    </dialog>
+                  </th:block>
+                </span>
+              </div>
+            </div>
+
+            <form th:unless="${member.addableRoles().isEmpty()}" class="flex items-center gap-2 shrink-0"
+                  x-data="{ adding: '' }"
+                  th:attr="hx-post=@{/app/admin/team/{id}/roles(id=${member.id()})}"
+                  hx-target="#team-list" hx-swap="outerHTML" hx-include="#team-filters">
+              <select class="select w-44 h-8 text-xs" name="newRole" x-model="adding" aria-label="Ajouter un rôle">
+                <option value="" disabled selected hidden>Ajouter un rôle…</option>
+                <option th:each="option : ${member.addableRoles()}" th:value="${option.code()}" th:text="${option.label()}"></option>
+              </select>
+              <button type="submit" class="btn" data-variant="outline" data-size="sm" :disabled="!adding"
+                      aria-label="Ajouter le rôle" th:utext="${icons.svg('plus', 'h-3 w-3')}"></button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted-foreground pt-2">
+      Le rôle <strong>Owner</strong> ne peut pas être modifié depuis
+      l'interface : il doit être attribué directement en base pour
+      éviter les erreurs critiques.
+    </p>
+  </div>
+</th:block>
+</body>
+</html>

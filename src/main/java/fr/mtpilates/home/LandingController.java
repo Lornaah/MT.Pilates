@@ -1,8 +1,10 @@
 package fr.mtpilates.home;
 
+import fr.mtpilates.auth.AuthenticatedUser;
 import java.time.Clock;
 import java.time.Year;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,7 +28,10 @@ public class LandingController {
     }
 
     @GetMapping("/")
-    public String landing(final Model model) {
+    public String landing(final Authentication authentication, final Model model) {
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser) {
+            return "redirect:/app";
+        }
         model.addAttribute("pillars", PILLARS);
         model.addAttribute("year", Year.now(clock).getValue());
         return "pages/index";

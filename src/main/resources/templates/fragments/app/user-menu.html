@@ -1,0 +1,30 @@
+<!--/* SidebarUserMenu : avatar + email + rôle principal, « Voir comme… » (owner), déconnexion. */-->
+<div th:fragment="userMenu" class="mt-auto p-3 border-t border-sidebar-border" th:with="user=${currentUser.get()}">
+  <a th:href="@{/app/profile}"
+     class="w-full rounded-lg transition-colors hover:bg-accent/50"
+     :class="collapsed ? 'flex justify-center py-2' : 'flex items-center gap-3 px-3 py-2 bg-muted/50'">
+    <th:block th:replace="~{fragments/ui/components :: userAvatar(${user.avatarUrl().orElse(null)}, ${user.initial()}, 'md')}"></th:block>
+    <div x-show="!collapsed" class="flex-1 min-w-0 text-left">
+      <div class="text-sm truncate" th:text="${user.email()}"></div>
+      <div class="text-xs text-muted-foreground" th:text="${primaryRoleLabel.get()}"></div>
+    </div>
+  </a>
+
+  <!--/* Correction (Q2) : le sélecteur reste visible pendant l'impersonation, d'après le rôle réel. */-->
+  <form th:if="${user.isRealOwner()}" x-show="!collapsed" method="post" th:action="@{/app/view-as}">
+    <label class="sr-only" for="view-as">Voir comme…</label>
+    <select id="view-as" name="role" class="select w-full mt-2 h-8 text-xs" onchange="this.form.submit()">
+      <option value="owner" th:selected="${user.viewAs().isEmpty()}">Owner (moi)</option>
+      <option th:each="option : ${viewAsOptions}" th:value="${option.code()}" th:text="${option.optionLabel()}"
+              th:selected="${user.viewAs().isPresent() and user.viewAs().get() == option.role()}"></option>
+    </select>
+  </form>
+
+  <form method="post" th:action="@{/auth/logout}">
+    <button type="submit" class="btn w-full mt-2" data-variant="ghost" data-size="sm"
+            :class="collapsed ? 'justify-center px-0' : 'justify-start'">
+      <th:block th:utext="${icons.svg('log-out', 'h-4 w-4')}"></th:block>
+      <span x-show="!collapsed" class="ml-2">Se déconnecter</span>
+    </button>
+  </form>
+</div>

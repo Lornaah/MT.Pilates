@@ -1,0 +1,21 @@
+<!--/* Bandeau « Voir comme » (correction Q2 : affiché d'après le rôle réel, l'original ne l'affichait jamais). */-->
+<th:block th:fragment="banner">
+  <div th:if="${viewAsBannerLabel.isPresent()}" th:with="label=${viewAsBannerLabel.get()}"
+       role="status" aria-live="polite"
+       class="bg-amber-50 text-amber-900 border-b border-amber-200 px-3 py-2 text-sm flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2 min-w-0">
+      <th:block th:utext="${icons.svg('eye', 'h-4 w-4 shrink-0')}"></th:block>
+      <span class="truncate">
+        Vous consultez l'application comme un <strong th:text="${label}"></strong>. Ce
+        que vous voyez correspond à l'expérience de cet utilisateur.
+      </span>
+    </div>
+    <form method="post" th:action="@{/app/view-as}">
+      <input type="hidden" name="role" value="owner">
+      <button type="submit" class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-medium hover:bg-amber-100">
+        <th:block th:utext="${icons.svg('x', 'h-3 w-3')}"></th:block>
+        Revenir au mode owner
+      </button>
+    </form>
+  </div>
+</th:block>

@@ -3,6 +3,7 @@ package fr.mtpilates.home;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import fr.mtpilates.support.IntegrationTest;
@@ -35,7 +36,7 @@ class LandingControllerTest {
     @Test
     void requiresAuthenticationForTheMemberArea() throws Exception {
         mvc.perform(get("/app"))
-                .andExpect(status().is4xxClientError());
+                .andExpect(redirectedUrl("/auth"));
     }
 
     @Test

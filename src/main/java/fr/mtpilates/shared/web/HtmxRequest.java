@@ -14,6 +14,10 @@ public final class HtmxRequest {
     private HtmxRequest() {
     }
 
+    public static boolean isHtmx(final HttpServletRequest request) {
+        return "true".equals(request.getHeader(HX_REQUEST));
+    }
+
     /** Requête HTMX qui attend un fragment (une navigation « boostée » attend une page complète). */
     public static boolean wantsFragment(final HttpServletRequest request) {
         return "true".equals(request.getHeader(HX_REQUEST))

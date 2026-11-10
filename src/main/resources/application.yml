@@ -22,6 +22,9 @@ spring:
   web:
     locale: fr_FR
     locale-resolver: fixed
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
   messages:
     basename: messages
     encoding: UTF-8
@@ -39,5 +42,6 @@ server:
 app:
   storage:
     root: ${APP_STORAGE_ROOT:./storage}
-  bootstrap:
+  auth:
     owner-emails: ${APP_BOOTSTRAP_OWNER_EMAILS:}
+    mail-from: ${APP_MAIL_FROM:MT Pilates <no-reply@localhost>}

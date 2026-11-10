@@ -52,7 +52,8 @@
   .card > footer { @apply flex items-center p-6 pt-0; }
 
   /* ------------------------------------------------------------- Champs */
-  .label { @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70; }
+  /* Label Radix de l'original : inline (Basecoat le passe en flex, ce qui change la hauteur de ligne). */
+  .label { @apply inline text-sm font-medium leading-none select-auto peer-disabled:cursor-not-allowed peer-disabled:opacity-70; }
 
   .input:not([type='checkbox']):not([type='radio']) {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
@@ -63,7 +64,7 @@
   }
   select.select {
     @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background ps-3 pe-9 py-2 text-sm ring-offset-background focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-    background-image: var(--chevron-down-icon-50);
+    background-image: var(--select-chevron);
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     background-size: 1rem;
@@ -80,6 +81,8 @@
   }
 
   /* --------------------------------------------------------------- Tabs */
+  /* Radix Tabs était un simple bloc : les marges liste/panneau se fusionnaient (Basecoat utilise flex). */
+  .tabs { @apply block; }
   .tabs > [role='tablist'] { @apply inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground; }
   .tabs > [role='tablist'] > [role='tab'] {
     @apply inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-xs;
@@ -123,4 +126,11 @@
   .toaster .toast .toast-content section h2 { @apply font-sans font-medium leading-normal tracking-normal; }
   .toaster .toast[data-category='error'] .toast-content svg { @apply text-destructive; }
   .toaster .toast[data-category='success'] .toast-content svg { @apply text-success; }
+}
+
+/* Hors couche, exprès : dans l'original, `[&_svg]:size-4` du bouton battait toute classe de taille posée
+   sur l'icône (spécificité). En v4, les utilitaires passent avant la couche components : on rétablit la règle. */
+.btn svg {
+  width: 1rem;
+  height: 1rem;
 }

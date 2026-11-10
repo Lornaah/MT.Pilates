@@ -1,0 +1,18 @@
+<!--/* NotificationBell : déclencheur et panneau. Les annonces y seront branchées au module M10 ; d'ici là, état vide. */-->
+<div th:fragment="bell" class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+  <button type="button" class="btn relative h-8 w-8" data-variant="ghost" data-size="icon"
+          data-tooltip="Annonces" data-side="bottom" aria-label="Annonces" @click="open = !open" :aria-expanded="open"
+          th:utext="${icons.svg('bell', 'h-4 w-4')}"></button>
+  <div data-popover data-align="end" :aria-hidden="!open" class="w-80 p-0">
+    <div class="px-4 py-3 border-b">
+      <div class="font-display text-base">Annonces</div>
+      <div class="text-xs text-muted-foreground">Aucune nouvelle annonce</div>
+    </div>
+    <div class="max-h-80 overflow-auto">
+      <p class="text-sm text-muted-foreground text-center py-8 px-4">Pas d'annonce pour le moment.</p>
+    </div>
+    <div class="px-4 py-2 border-t">
+      <a th:href="@{/app/announcements}" class="text-xs text-primary hover:underline" @click="open = false">Voir toutes les annonces →</a>
+    </div>
+  </div>
+</div>

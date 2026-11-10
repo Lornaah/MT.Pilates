@@ -49,7 +49,8 @@ Décisions : `INVENTORY.md` §9. Reste R3 : identifiants des comptes de test, à
   Envoi via `spring-boot-starter-mail` (capture locale en dev, SMTP de prod selon R2) ; templates d'email Thymeleaf aux couleurs de l'app.
 - `Capacities` (port exact de `deriveCapacities`) + `CurrentUser` ; « Voir comme » stocké en session HTTP, bandeau de retour corrigé.
 - Règles de rôle conformes à la base (`is_staff` = owner/setter/coach, `is_management` = owner/setter).
-- Gardes : `/app/**` authentifié, groupes staff / owner, redirections identiques ; `OnboardingGate` (filtre ou intercepteur).
+- Gardes : `/app/**` authentifié, groupes staff / owner, redirections identiques. L'`OnboardingGate` est livré avec
+  l'onboarding en M3 (rediriger vers une page qui n'existe pas encore n'aurait pas de sens).
 - **AppLayout complet** : sidebar (zones calculées depuis les capacités, repli, cookie, Ctrl/Cmd+B, drawer mobile), menu utilisateur,
   header (le bell et le bouton d'installation arrivent en M10/M15), `PageHeader`.
 - `ConfigService` minimal (lecture `app_config` + `label(key, fallback)`) nécessaire aux libellés de navigation.
@@ -65,6 +66,7 @@ Décisions : `INVENTORY.md` §9. Reste R3 : identifiants des comptes de test, à
 - Legacy : `pages/app/owner/AppSettings.tsx`, `settings-config.ts`, `hooks/useAppConfig.tsx`, `useLabels.ts`, `useObjectives.ts`.
 
 ## M3 — Onboarding et Ma fiche
+- `OnboardingGate` : un membre non staff sans `onboarding_completed_at` est renvoyé vers `/onboarding`.
 - `/onboarding` : stepper 4 étapes (état d'étape en Alpine, données envoyées en une fois ou par étape via HTMX), vidéo embed, chips,
   TagInput, disponibilités, préférences alimentaires JSON ; redirections.
 - `/app/profile` : avatar (upload `StorageService`), infos, suivi sportif, `MemberSummaryForm`, notes du coach, enregistrer.

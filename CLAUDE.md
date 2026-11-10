@@ -78,6 +78,17 @@ L'original est en Tailwind v3, la cible en v4. En recopiant une classe, applique
   `md:leading-none` pour text-5xl et plus). Vérifier par comparaison de captures.
 - `container`, `hover:` (actif aussi sur écran tactile) et le curseur des boutons sont déjà alignés sur v3 dans `app.css`.
 - Rayons : `rounded-lg/md/sm` suivent `--radius` (1rem) comme dans l'original.
+- `space-x/y-*` sont redéfinis dans `app.css` avec la mécanique v3 (marge haute sur les enfants suivants).
+- Icônes dans un bouton : toujours 16 px, comme l'original (`[&_svg]:size-4` battait toute classe de taille).
+- `twMerge` de l'original : une classe `text-*` passée à un composant **supprimait** son `leading-*`.
+  Ex. `<Label className="text-sm">` → interligne de `text-sm`, pas `leading-none` : ajouter `leading-5`.
+- Basecoat diverge de shadcn sur `.label` (flex) et `.tabs` (flex) : le style pack les remet en inline / bloc.
+
+## Pièges Thymeleaf / HTMX rencontrés
+- Un littéral passé à un fragment ne peut pas contenir d'apostrophe : passer par `messages.properties` (`#{cle}`).
+- `th:replace` / `th:insert` passent avant `th:if` sur le même élément : envelopper dans `<th:block th:if>`.
+- Pas de lambda ni de `@bean` dans les expressions : préparer la valeur côté Java (modèle, `@ControllerAdvice`).
+- En-têtes HTMX (`HX-Trigger`) : ASCII uniquement, `ToastResponses` échappe déjà le JSON.
 
 ## Thèmes
 - Le thème par défaut est défini dans `src/main/frontend/css/themes/default.css` (variables HSL sur `:root`).

@@ -1,0 +1,24 @@
+<!--/* InstallAppButton : masqué en mode application installée ; instructions selon iOS ou autre navigateur. */-->
+<div th:fragment="installButton"
+     x-data="{ standalone: window.matchMedia('(display-mode: standalone)').matches, ios: /iphone|ipad/i.test(navigator.userAgent) }"
+     x-show="!standalone">
+  <button type="button" class="btn gap-2 text-muted-foreground hover:text-foreground min-h-9" data-variant="ghost" data-size="sm"
+          aria-label="Installer l'application" data-tooltip="Installer l'application sur votre appareil" data-side="bottom" data-align="end"
+          @click="$refs.installDialog.showModal()">
+    <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block>
+    <span class="hidden sm:inline text-xs">Installer l'app</span>
+  </button>
+  <dialog x-ref="installDialog" class="dialog" aria-labelledby="install-title">
+    <div class="max-w-sm">
+      <header>
+        <h2 id="install-title" class="font-display text-xl">Installer l'application</h2>
+        <p x-text="ios ? 'Appuyez sur Partager puis « Sur l\'écran d\'accueil ».' : 'Ouvrez le menu du navigateur et choisissez « Installer l\'application ».'"></p>
+      </header>
+      <footer>
+        <button type="button" class="btn" onclick="this.closest('dialog').close()">Compris</button>
+      </footer>
+      <button type="button" class="dialog-close" aria-label="Close" onclick="this.closest('dialog').close()"
+              th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+    </div>
+  </dialog>
+</div>

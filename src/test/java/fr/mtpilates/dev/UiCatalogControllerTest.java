@@ -39,7 +39,7 @@ class UiCatalogControllerTest {
     void sendsToastsThroughTheHtmxTriggerHeader() throws Exception {
         mvc.perform(post("/dev/ui/toast").param("category", "success").with(csrf()))
                 .andExpect(status().isNoContent())
-                .andExpect(header().string("HX-Trigger", containsString("\"message\":\"Fiche mise à jour\"")))
+                .andExpect(header().string("HX-Trigger", containsString("\"message\":\"Fiche mise \\u00E0 jour\"")))
                 .andExpect(header().string("HX-Trigger", containsString("\"category\":\"success\"")));
     }
 
