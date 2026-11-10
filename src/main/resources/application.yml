@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: mt-pilates
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/mtpilates}
+    username: ${DATABASE_USERNAME:mtpilates}
+    password: ${DATABASE_PASSWORD:mtpilates}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    locations: classpath:db/migration
+  thymeleaf:
+    cache: true
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+  web:
+    locale: fr_FR
+    locale-resolver: fixed
+  messages:
+    basename: messages
+    encoding: UTF-8
+
+server:
+  error:
+    whitelabel:
+      enabled: false
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+app:
+  storage:
+    root: ${APP_STORAGE_ROOT:./storage}
+  bootstrap:
+    owner-emails: ${APP_BOOTSTRAP_OWNER_EMAILS:}

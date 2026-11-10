@@ -1,0 +1,102 @@
+/* ============================================================================
+   Thème par défaut — MT Pilates : wellness éditorial, tons terre & crème.
+   Valeurs reprises à l'identique de l'ancienne app (src/index.css, HSL).
+   Un thème additionnel redéfinit ces mêmes variables sous [data-theme="<nom>"].
+   ============================================================================ */
+:root {
+  /* Surfaces */
+  --background: hsl(38 44% 96%);            /* crème */
+  --foreground: hsl(0 50% 14%);             /* bordeaux profond */
+  --card: hsl(38 50% 98%);
+  --card-foreground: hsl(0 50% 14%);
+  --popover: hsl(38 50% 98%);
+  --popover-foreground: hsl(0 50% 14%);
+
+  /* Marque */
+  --primary: hsl(22 82% 38%);               /* terracotta */
+  --primary-foreground: hsl(38 50% 98%);
+  --primary-glow: hsl(30 70% 58%);          /* ocre clair */
+  --secondary: hsl(200 35% 28%);            /* bleu nuit doux */
+  --secondary-foreground: hsl(38 50% 98%);
+  --muted: hsl(28 30% 88%);                 /* sable */
+  --muted-foreground: hsl(0 25% 30%);
+  --accent: hsl(30 65% 60%);                /* ocre */
+  --accent-foreground: hsl(0 50% 14%);
+  --sage: hsl(95 22% 62%);                  /* sauge */
+  --sage-foreground: hsl(95 30% 15%);
+  --coach: hsl(168 55% 32%);
+  --coach-foreground: hsl(168 40% 96%);
+  --setter: hsl(265 50% 48%);
+  --setter-foreground: hsl(265 40% 97%);
+  --trial: hsl(38 70% 50%);
+  --trial-foreground: hsl(38 80% 10%);
+  --bordeaux: hsl(0 70% 22%);
+  --bordeaux-foreground: hsl(38 50% 98%);
+  --destructive: hsl(0 70% 35%);
+  --destructive-foreground: hsl(38 50% 98%);
+  --success: hsl(150 45% 30%);
+  --success-foreground: hsl(150 30% 96%);
+
+  --border: hsl(28 25% 82%);
+  --input: hsl(28 25% 82%);
+  --ring: hsl(22 82% 38%);
+
+  --radius: 1rem;
+
+  /* Dégradés */
+  --gradient-warm: linear-gradient(135deg, hsl(22 82% 38%) 0%, hsl(30 65% 60%) 100%);
+  --gradient-soft: linear-gradient(180deg, hsl(38 44% 96%) 0%, hsl(28 30% 88%) 100%);
+  --gradient-hero: linear-gradient(135deg, hsl(0 50% 14% / 0.55) 0%, hsl(22 82% 38% / 0.35) 100%);
+
+  /* Ombres */
+  --shadow-soft: 0 1px 2px hsl(0 50% 14% / 0.04), 0 8px 24px -8px hsl(22 82% 38% / 0.15);
+  --shadow-warm: 0 20px 60px -20px hsl(22 82% 38% / 0.35);
+  --shadow-elevated: 0 30px 80px -30px hsl(0 50% 14% / 0.25);
+
+  /* Mouvement */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-soft: all 0.4s var(--ease-soft);
+
+  /* Sidebar (noms Basecoat) */
+  --sidebar: hsl(38 50% 98%);
+  --sidebar-foreground: hsl(0 50% 14%);
+  --sidebar-primary: hsl(22 82% 38%);
+  --sidebar-primary-foreground: hsl(38 50% 98%);
+  --sidebar-accent: hsl(28 30% 92%);
+  --sidebar-accent-foreground: hsl(0 50% 14%);
+  --sidebar-border: hsl(28 25% 86%);
+  --sidebar-ring: hsl(22 82% 38%);
+
+  /* Couleurs codées en dur dans l'original, centralisées ici pour rester thémables. */
+  /* Palette des pastilles coach (lib/coachBadgeConfig.ts) : indices 0..7 */
+  --coach-badge-0: var(--coach);
+  --coach-badge-1: var(--secondary);
+  --coach-badge-2: var(--setter);
+  --coach-badge-3: var(--primary);
+  --coach-badge-4: var(--sage);
+  --coach-badge-5: var(--trial);
+  --coach-badge-6: var(--accent);
+  --coach-badge-7: var(--bordeaux);
+
+  /* Types de repas (WeeklyMealGrid) */
+  --meal-breakfast: #FAEEDA;
+  --meal-lunch: #E1F5EE;
+  --meal-dinner: #E6F1FB;
+  --meal-snack: #FBEAF0;
+  --meal-dessert: #EEEDFE;
+  --meal-other: #F1EFE8;
+
+  /* Séries des graphiques de mensurations (TrackingChartCard) */
+  --chart-weight: var(--primary);
+  --chart-waist: var(--destructive);
+  --chart-hip: #8884d8;
+  --chart-chest: #82ca9d;
+  --chart-arm: #ffc658;
+  --chart-thigh: #ff7f50;
+
+  /* PWA */
+  --pwa-theme: #E8927C;
+  --pwa-background: #FFF7F5;
+
+  color-scheme: light;
+}

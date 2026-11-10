@@ -1,0 +1,12 @@
+spring:
+  thymeleaf:
+    cache: false
+    prefix: file:src/main/resources/templates/
+  web:
+    resources:
+      static-locations: file:target/classes/static/,classpath:/static/
+      cache:
+        period: 0
+logging:
+  level:
+    fr.mtpilates: DEBUG

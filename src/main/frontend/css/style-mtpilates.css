@@ -1,0 +1,126 @@
+/* ============================================================================
+   Style pack Basecoat « MT Pilates » : reproduit les classes shadcn/ui
+   (style « default », Tailwind v3) de l'ancienne app sur la structure Basecoat.
+   Correspondances v3 → v4 appliquées : shadow-sm → shadow-xs,
+   outline-none → outline-hidden.
+   ============================================================================ */
+@layer components {
+  /* ------------------------------------------------------------- Button */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0;
+  }
+  .btn:not([data-size]),
+  .btn[data-size='default'] { @apply h-10 px-5 py-2; }
+  .btn[data-size='sm'] { @apply h-9 px-4; }
+  .btn[data-size='lg'] { @apply h-12 px-8 text-base; }
+  .btn[data-size='icon'] { @apply h-10 w-10; }
+
+  .btn:not([data-variant]),
+  .btn[data-variant='default'] { @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft; }
+  .btn[data-variant='destructive'] { @apply bg-destructive text-destructive-foreground hover:bg-destructive/90; }
+  .btn[data-variant='outline'] { @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground; }
+  .btn[data-variant='secondary'] { @apply bg-secondary text-secondary-foreground hover:bg-secondary/80; }
+  .btn[data-variant='ghost'] { @apply hover:bg-accent/40 hover:text-accent-foreground rounded-lg; }
+  .btn[data-variant='link'] { @apply text-primary underline-offset-4 hover:underline; }
+  .btn[data-variant='hero'] { @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow-warm hover:scale-[1.02]; }
+  .btn[data-variant='outlineLight'] { @apply border border-background/40 text-background bg-background/5 backdrop-blur-md hover:bg-background/15; }
+  .btn[data-variant='cream'] { @apply bg-background text-foreground hover:bg-background/90 shadow-elevated; }
+  .btn[data-variant='sage'] { @apply bg-sage text-sage-foreground hover:bg-sage/90; }
+
+  /* -------------------------------------------------------------- Badge */
+  .badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+  .badge:not([data-variant]),
+  .badge[data-variant='default'] { @apply border-transparent bg-primary text-primary-foreground hover:bg-primary/80; }
+  .badge[data-variant='secondary'] { @apply border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80; }
+  .badge[data-variant='destructive'] { @apply border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80; }
+  .badge[data-variant='outline'] { @apply text-foreground border-border; }
+  .badge[data-variant='success'] { @apply border-transparent bg-success text-success-foreground hover:bg-success/80; }
+  .badge[data-variant='warm'] { @apply border-transparent bg-trial text-trial-foreground hover:bg-trial/80; }
+  .badge[data-variant='pop'] { @apply border-transparent bg-setter text-setter-foreground hover:bg-setter/80; }
+  .badge[data-variant='coach'] { @apply border-transparent bg-coach text-coach-foreground hover:bg-coach/80; }
+  .badge[data-variant='sage'] { @apply border-transparent bg-sage text-sage-foreground hover:bg-sage/80; }
+  .badge[data-variant='bordeaux'] { @apply border-transparent bg-bordeaux text-bordeaux-foreground hover:bg-bordeaux/80; }
+
+  /* --------------------------------------------------------------- Card */
+  .card { @apply rounded-lg border bg-card text-card-foreground shadow-xs; }
+  .card > header { @apply flex flex-col space-y-1.5 p-6; }
+  .card > header > :is(h2, h3, .card-title) { @apply text-2xl font-semibold leading-none tracking-tight; }
+  .card > header > p { @apply text-sm text-muted-foreground; }
+  .card > section { @apply p-6 pt-0; }
+  .card > footer { @apply flex items-center p-6 pt-0; }
+
+  /* ------------------------------------------------------------- Champs */
+  .label { @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70; }
+
+  .input:not([type='checkbox']):not([type='radio']) {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+  }
+  .textarea {
+    @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    field-sizing: fixed;
+  }
+  select.select {
+    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background ps-3 pe-9 py-2 text-sm ring-offset-background focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    background-image: var(--chevron-down-icon-50);
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+  .input[type='checkbox']:not([role='switch']) {
+    @apply h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 checked:bg-primary checked:text-primary-foreground;
+  }
+  .input[type='checkbox'][role='switch'] {
+    @apply h-6 w-11 cursor-pointer rounded-full border-2 border-transparent bg-input transition-colors checked:bg-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply before:h-5 before:w-5 before:rounded-full before:bg-background before:shadow-lg checked:before:translate-x-5;
+  }
+  input[type='range'].slider {
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-secondary accent-primary;
+  }
+
+  /* --------------------------------------------------------------- Tabs */
+  .tabs > [role='tablist'] { @apply inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground; }
+  .tabs > [role='tablist'] > [role='tab'] {
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:bg-background aria-selected:text-foreground aria-selected:shadow-xs;
+    flex: initial;
+  }
+  .tabs > [role='tabpanel'] { @apply mt-2 ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2; }
+
+  /* ------------------------------------------------------------- Dialog */
+  .dialog::backdrop,
+  .alert-dialog::backdrop { @apply bg-black/80; }
+  .dialog > *,
+  .alert-dialog > * { @apply grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg; }
+  .dialog > * > header { @apply flex flex-col space-y-1.5 text-center sm:text-left; }
+  .alert-dialog > * > header { @apply flex flex-col space-y-2 text-center sm:text-left; }
+  :is(.dialog, .alert-dialog) > * > header > h2 { @apply text-lg font-semibold leading-none tracking-tight; }
+  :is(.dialog, .alert-dialog) > * > header > p { @apply text-sm text-muted-foreground; }
+  :is(.dialog, .alert-dialog) > * > footer { @apply flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2; }
+  .dialog > * > button.dialog-close {
+    @apply absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+
+  /* ------------------------------------------------------------ Popover */
+  [data-popover] { @apply z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md; }
+
+  /* ------------------------------------------------------------ Tooltip */
+  [data-tooltip]::before { @apply overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md; }
+
+  /* -------------------------------------------------------------- Table */
+  .table { @apply text-sm; }
+  .table tr { @apply hover:bg-muted/50; }
+  .table th { @apply h-12 px-4 text-left text-muted-foreground; }
+  .table td { @apply p-4 whitespace-normal; }
+
+  /* --------------------------------------------- Toast (rendu « sonner ») */
+  .toaster { @apply bottom-0 right-0 gap-3.5 p-8 sm:max-w-[356px]; }
+  .toaster .toast { @apply grid-rows-none; }
+  .toaster .toast .toast-content {
+    @apply w-full items-center gap-1.5 rounded-lg border border-border bg-background p-4 text-[13px] text-foreground shadow-lg;
+  }
+  /* Les toasts sonner utilisent la police du corps, pas la serif des titres h1–h4. */
+  .toaster .toast .toast-content section h2 { @apply font-sans font-medium leading-normal tracking-normal; }
+  .toaster .toast[data-category='error'] .toast-content svg { @apply text-destructive; }
+  .toaster .toast[data-category='success'] .toast-content svg { @apply text-success; }
+}

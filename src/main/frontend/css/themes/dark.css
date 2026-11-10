@@ -1,0 +1,49 @@
+/* ============================================================================
+   Thème sombre — tokens `.dark` de l'ancienne app, portés tels quels.
+   Non activé : l'original ne proposait aucun moyen de le choisir.
+   Activation : <html data-theme="dark">.
+   ============================================================================ */
+[data-theme="dark"] {
+  --background: hsl(0 30% 8%);
+  --foreground: hsl(38 44% 94%);
+  --card: hsl(0 25% 12%);
+  --card-foreground: hsl(38 44% 94%);
+  --popover: hsl(0 25% 12%);
+  --popover-foreground: hsl(38 44% 94%);
+  --primary: hsl(30 70% 58%);
+  --primary-foreground: hsl(0 50% 10%);
+  --secondary: hsl(200 30% 22%);
+  --secondary-foreground: hsl(38 44% 94%);
+  --muted: hsl(0 20% 18%);
+  --muted-foreground: hsl(28 20% 70%);
+  --accent: hsl(30 65% 55%);
+  --accent-foreground: hsl(0 50% 10%);
+  --sage: hsl(95 20% 50%);
+  --sage-foreground: hsl(95 30% 12%);
+  --coach: hsl(168 50% 38%);
+  --coach-foreground: hsl(168 40% 96%);
+  --setter: hsl(265 45% 55%);
+  --setter-foreground: hsl(265 40% 97%);
+  --trial: hsl(38 65% 55%);
+  --trial-foreground: hsl(38 80% 8%);
+  --bordeaux: hsl(0 60% 35%);
+  --destructive: hsl(0 70% 45%);
+  --destructive-foreground: hsl(38 44% 94%);
+  --success: hsl(150 40% 38%);
+  --success-foreground: hsl(150 30% 96%);
+  --border: hsl(0 20% 20%);
+  --input: hsl(0 20% 20%);
+  --ring: hsl(30 70% 58%);
+
+  /* L'original ne définissait pas la sidebar en sombre : on la cale sur les surfaces. */
+  --sidebar: hsl(0 25% 12%);
+  --sidebar-foreground: hsl(38 44% 94%);
+  --sidebar-primary: hsl(30 70% 58%);
+  --sidebar-primary-foreground: hsl(0 50% 10%);
+  --sidebar-accent: hsl(0 20% 18%);
+  --sidebar-accent-foreground: hsl(38 44% 94%);
+  --sidebar-border: hsl(0 20% 20%);
+  --sidebar-ring: hsl(30 70% 58%);
+
+  color-scheme: dark;
+}

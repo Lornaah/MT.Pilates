@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<body>
+<th:block layout:fragment="content">
+<!--/* Fondu de sortie (300 ms) avant d'aller vers /auth, comme navigateSmooth de l'original. */-->
+<div class="min-h-screen bg-background" style="transition: opacity 0.3s ease, transform 0.3s ease"
+     x-data="{ leaving: false, go(url) { this.leaving = true; setTimeout(() => window.location.href = url, 300); } }"
+     :style="leaving && 'opacity: 0; transform: scale(0.985)'">
+
+  <header class="absolute top-0 left-0 right-0 z-20">
+    <div class="container flex items-center justify-between py-4 md:py-6">
+      <a th:href="@{/}" class="flex items-center gap-2 text-background">
+        <div class="h-8 w-8 md:h-9 md:w-9 rounded-full bg-background/15 backdrop-blur-md border border-background/20 flex items-center justify-center shrink-0">
+          <img th:src="@{/images/logo-icon.png}" alt="MT Pilates" class="h-3.5 w-3.5 md:h-4 md:w-4 object-contain">
+        </div>
+        <div class="hidden sm:block">
+          <div class="font-display text-xl leading-none">MT Pilates</div>
+          <div class="text-[10px] uppercase tracking-[0.2em] opacity-70 mt-1">Coach Pilates</div>
+        </div>
+      </a>
+      <button type="button" class="btn text-background hover:bg-background/15 hover:text-background text-xs sm:text-sm shrink-0"
+              data-variant="ghost" data-size="sm" @click="go('/auth')">
+        <span class="hidden sm:inline">Espace membre</span>
+        <span class="sm:hidden">Connexion</span>
+        <th:block th:utext="${icons.svg('arrow-right', 'ml-1.5 h-3.5 w-3.5 sm:ml-2 sm:h-4 sm:w-4')}"></th:block>
+      </button>
+    </div>
+  </header>
+
+  <section class="relative min-h-[100svh] md:min-h-[92vh] flex items-end overflow-hidden">
+    <img th:src="@{/images/hero-pilates.jpg}" alt="MT Pilates — espace de Pilates lumineux avec tapis et plantes"
+         class="absolute inset-0 h-full w-full object-cover" width="1280" height="1600">
+    <div class="absolute inset-0 bg-gradient-hero"></div>
+    <div class="relative container pb-10 md:pb-28 max-w-3xl text-background animate-fade-up overflow-hidden">
+      <div class="hidden sm:inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] mb-6 opacity-90">
+        <span class="h-px w-8 bg-background/60"></span> MT Pilates · Marion Tanet
+      </div>
+      <h1 class="font-display text-4xl sm:text-5xl md:text-7xl lg:text-8xl leading-[0.95] sm:leading-none text-balance">
+        Le Pilates qui vous <em class="font-light italic">ressemble.</em>
+      </h1>
+      <p class="mt-8 max-w-xl text-lg md:text-xl text-background/85 leading-relaxed md:leading-7">
+        Des séances guidées par Marion, un suivi personnalisé, et un studio pensé pour les femmes qui veulent
+        renouer avec leur corps — à leur rythme.
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row gap-4">
+        <button type="button" class="btn" data-variant="hero" data-size="lg" @click="go('/auth')">Accéder à mon espace</button>
+        <a href="#marion" class="btn" data-variant="outlineLight" data-size="lg">Découvrir Marion</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-24 md:py-36 container transition-all duration-700 ease-out"
+           x-data="scrollReveal()" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+    <div id="marion" class="grid md:grid-cols-12 gap-10 md:gap-16 items-center">
+      <div class="md:col-span-5 relative order-2 md:order-1 transition-all duration-700 ease-out"
+           x-data="scrollReveal(150)" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+        <div class="aspect-[4/5] rounded-3xl overflow-hidden shadow-elevated">
+          <img th:src="@{/images/marion-pilates.jpg}" alt="Marion Tanet en séance de Pilates" loading="lazy"
+               class="h-full w-full object-cover" width="1024" height="1280">
+        </div>
+      </div>
+      <div class="md:col-span-7 space-y-6 order-1 md:order-2 transition-all duration-700 ease-out"
+           x-data="scrollReveal(50)" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+        <div class="text-xs uppercase tracking-[0.25em] text-primary">Votre coach</div>
+        <h2 class="font-display text-4xl md:text-5xl leading-tight md:leading-none text-balance">
+          Marion <em class="italic font-light">Tanet</em>
+        </h2>
+        <p class="text-muted-foreground leading-relaxed text-lg">
+          Quand le corps se sent entendu, il s'apaise. Et quand il s'apaise, il retrouve sa capacité à se
+          transformer.
+        </p>
+        <p class="text-muted-foreground leading-relaxed">
+          Marion accompagne les femmes fatiguées, déconnectées de leur corps, frustrées de ne plus se sentir
+          "elles-mêmes". Grâce à une approche douce, consciente et sur-mesure, elle les aide à retrouver leur élan —
+          un mouvement à la fois.
+        </p>
+        <p class="text-muted-foreground leading-relaxed">
+          Vos séances vidéo sont accessibles 7j/7 dans votre espace privé. Marion suit votre progression, ajuste le
+          programme, et vous accompagne en studio quand vous le souhaitez.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-24 md:py-36 container transition-all duration-700 ease-out"
+           x-data="scrollReveal()" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+    <div id="approche" class="grid md:grid-cols-12 gap-10 md:gap-16 items-center">
+      <div class="md:col-span-7 space-y-6 transition-all duration-700 ease-out"
+           x-data="scrollReveal(50)" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+        <div class="text-xs uppercase tracking-[0.25em] text-primary">L'approche MT Pilates</div>
+        <h2 class="font-display text-4xl md:text-5xl leading-tight md:leading-none text-balance">
+          Un mouvement <em class="italic font-light">conscient</em>, un suivi attentif.
+        </h2>
+        <p class="text-muted-foreground leading-relaxed">
+          Nous croyons qu'une pratique régulière, douce et sur-mesure transforme bien plus que la silhouette — elle
+          change la façon d'habiter son corps.
+        </p>
+      </div>
+      <div class="md:col-span-5 relative transition-all duration-700 ease-out"
+           x-data="scrollReveal(200)" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+        <div class="aspect-[4/5] rounded-3xl overflow-hidden shadow-elevated">
+          <img th:src="@{/images/feature-class.jpg}" alt="Marion Tanet pratiquant le Pilates au studio" loading="lazy"
+               class="h-full w-full object-cover" width="1024" height="1280">
+        </div>
+        <div class="absolute -bottom-6 -left-6 bg-card rounded-2xl shadow-warm p-5 max-w-[220px] hidden md:block">
+          <div class="text-3xl font-display text-primary">+220</div>
+          <div class="text-xs text-muted-foreground mt-1">membres accompagnées chaque mois</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-muted/40 py-24 transition-all duration-700 ease-out"
+           x-data="scrollReveal()" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+    <div class="container">
+      <div class="grid md:grid-cols-3 gap-8">
+        <div th:each="pillar, it : ${pillars}" class="transition-all duration-700 ease-out"
+             th:attr="x-data=|scrollReveal(${it.index * 120})|"
+             :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+          <div class="bg-card rounded-3xl p-8 shadow-soft hover:shadow-warm transition-shadow h-full">
+            <div class="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-5"
+                 th:utext="${icons.svg(pillar.icon(), 'h-5 w-5 text-primary')}"></div>
+            <h3 class="font-display text-2xl mb-3" th:text="${pillar.title()}"></h3>
+            <p class="text-muted-foreground leading-relaxed text-sm" th:text="${pillar.text()}"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-28 container transition-all duration-700 ease-out"
+           x-data="scrollReveal()" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+    <div class="rounded-3xl bg-gradient-warm p-12 md:p-20 text-primary-foreground relative overflow-hidden grain">
+      <div class="grid md:grid-cols-12 gap-10 items-center">
+        <div class="md:col-span-7 text-center md:text-left">
+          <th:block th:utext="${icons.svg('leaf', 'h-8 w-8 opacity-30 mb-6 hidden md:block')}"></th:block>
+          <h2 class="font-display text-4xl md:text-6xl leading-tight md:leading-none max-w-3xl text-balance">
+            Prête à retrouver votre élan&nbsp;?
+          </h2>
+          <p class="mt-6 max-w-xl opacity-90">
+            Connectez-vous à votre espace membre pour accéder à vos séances, votre planning et votre suivi avec
+            Marion.
+          </p>
+          <button type="button" class="btn mt-10" data-variant="cream" data-size="lg" @click="go('/auth')">Me connecter</button>
+        </div>
+        <div class="md:col-span-5 hidden md:block">
+          <div class="aspect-square rounded-2xl overflow-hidden shadow-elevated mx-auto max-w-[280px]">
+            <img th:src="@{/images/marion-coach.jpg}" alt="Marion Tanet, coach Pilates" loading="lazy" class="h-full w-full object-cover">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-border py-10 transition-all duration-700 ease-out"
+          x-data="scrollReveal()" :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'">
+    <div class="container flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+      <div th:text="|© ${year} MT Pilates — Marion Tanet — Tous droits réservés|"></div>
+      <div class="font-display italic">Le souffle, le mouvement, le calme.</div>
+    </div>
+  </footer>
+</div>
+</th:block>
+</body>
+</html>

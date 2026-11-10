@@ -1,0 +1,210 @@
+<!--/* Composants communs de l'original (components/common, PageHeader), en fragments Thymeleaf. */-->
+
+<!--/* PageHeader. `action` et `back` sont des fragments optionnels (~{...}). */-->
+<div th:fragment="pageHeader(eyebrow, title, description, action, back, avatarUrl, avatarFallback)"
+     class="border-b border-border bg-card">
+  <div class="container py-6 md:py-10 flex flex-col gap-4">
+    <th:block th:if="${back != null}"><div class="shrink-0" th:insert="${back}"></div></th:block>
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div class="flex items-center gap-4 md:gap-5 min-w-0">
+        <th:block th:if="${avatarFallback != null}">
+          <img th:if="${avatarUrl != null}" th:src="${avatarUrl}" alt=""
+               class="h-12 w-12 md:h-16 md:w-16 rounded-full object-cover shrink-0">
+          <div th:unless="${avatarUrl != null}" th:text="${avatarFallback}"
+               class="h-12 w-12 md:h-16 md:w-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-display text-xl md:text-2xl shrink-0"></div>
+        </th:block>
+        <div class="min-w-0">
+          <div th:if="${eyebrow != null}" th:text="${eyebrow}" class="text-xs uppercase tracking-[0.25em] text-primary mb-1 md:mb-2"></div>
+          <h1 th:text="${title}" class="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-balance truncate"></h1>
+          <p th:if="${description != null}" th:text="${description}" class="text-muted-foreground mt-1 md:mt-3 max-w-2xl text-sm md:text-base"></p>
+        </div>
+      </div>
+      <th:block th:if="${action != null}"><div class="shrink-0" th:insert="${action}"></div></th:block>
+    </div>
+  </div>
+</div>
+
+<!--/* StatCard : tone ∈ default|primary|accent|sage|dark|secondary. */-->
+<div th:fragment="statCard(label, value, hint, icon, tone)"
+     th:with="t=${T(fr.mtpilates.shared.ui.StatTone).of(tone)}"
+     th:class="|card ${t.card()}|">
+  <section class="pt-5 pb-4 flex items-center gap-4">
+    <div th:if="${icon != null}" th:class="|h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${t.icon()}|"
+         th:utext="${icons.svg(icon, 'h-5 w-5')}"></div>
+    <div class="min-w-0">
+      <div th:class="|text-[10px] uppercase tracking-widest ${t.label()}|" th:text="${label}"></div>
+      <div th:class="|font-display text-2xl mt-1 ${t.value()}|" th:text="${value}"></div>
+      <div th:if="${hint != null}" th:class="|text-xs mt-0.5 ${t.hint()}|" th:text="${hint}"></div>
+    </div>
+  </section>
+</div>
+
+<!--/* EmptyState. */-->
+<div th:fragment="emptyState(icon, title, message, action)" class="card">
+  <section class="pt-6 py-16 text-center text-muted-foreground space-y-2">
+    <th:block th:if="${icon != null}" th:utext="${icons.svg(icon, 'h-10 w-10 mx-auto opacity-30')}"></th:block>
+    <p th:if="${title != null}" th:text="${title}" class="font-display text-lg text-foreground"></p>
+    <p th:text="${message}" class="text-sm"></p>
+    <th:block th:if="${action != null}"><div class="pt-2" th:insert="${action}"></div></th:block>
+  </section>
+</div>
+
+<!--/* LoadingSpinner : variant ∈ fullScreen|section|inline. */-->
+<th:block th:fragment="loadingSpinner(variant)">
+  <th:block th:if="${variant == 'inline'}" th:utext="${icons.svg('loader-circle', 'h-4 w-4 animate-spin text-primary')}"></th:block>
+  <div th:unless="${variant == 'inline'}"
+       th:class="${variant == 'fullScreen'} ? 'flex min-h-screen items-center justify-center bg-background' : 'flex min-h-[40vh] w-full items-center justify-center'"
+       th:utext="${icons.svg('loader-circle', 'h-6 w-6 animate-spin text-primary')}"></div>
+</th:block>
+
+<!--/* UserAvatar : size ∈ sm|md|lg|xl. */-->
+<th:block th:fragment="userAvatar(url, fallback, size)"
+          th:with="sizeClass=${size == 'sm'} ? 'h-8 w-8 text-xs' : (${size == 'lg'} ? 'h-12 w-12 text-base' : (${size == 'xl'} ? 'h-16 w-16 text-xl' : 'h-10 w-10 text-sm'))">
+  <img th:if="${url != null}" th:src="${url}" alt="" th:class="|rounded-full shrink-0 ${sizeClass} object-cover|">
+  <div th:unless="${url != null}" aria-hidden="true" th:text="${#strings.toUpperCase(fallback)}"
+       th:class="|rounded-full shrink-0 ${sizeClass} bg-primary text-primary-foreground flex items-center justify-center font-display|"></div>
+</th:block>
+
+<!--/* FormField : libellé + champ (le champ est fourni par l'appelant) + aide + erreurs de validation. */-->
+<div th:fragment="field(id, label, required, hint, control, errorField)" class="space-y-2">
+  <label class="label" th:for="${id}">
+    <span th:text="${label}"></span><span th:if="${required}" class="text-destructive ml-0.5">*</span>
+  </label>
+  <th:block th:insert="${control}"></th:block>
+  <p th:if="${hint != null}" th:text="${hint}" class="text-xs text-muted-foreground"></p>
+  <p th:if="${errorField != null and #fields.hasErrors(errorField)}" th:errors="*{__${errorField}__}"
+     class="text-sm font-medium text-destructive"></p>
+</div>
+
+<!--/* TagInput : `name` est le nom du paramètre répété soumis avec le formulaire. */-->
+<div th:fragment="tagInput(name, values, placeholder, variant)" class="space-y-2"
+     th:attr="x-data=|tagInput(${json.write(values != null ? values : {})})|">
+  <div class="flex flex-wrap gap-2">
+    <template x-for="tag in tags" :key="tag">
+      <span class="badge rounded-full gap-1" th:attr="data-variant=${variant != null ? variant : 'default'}">
+        <span x-text="tag"></span>
+        <input type="hidden" th:name="${name}" :value="tag">
+        <button type="button" class="hover:opacity-80" :aria-label="'Retirer ' + tag" @click="remove(tag)"
+                th:utext="${icons.svg('x', 'h-3 w-3')}"></button>
+      </span>
+    </template>
+    <span x-show="tags.length === 0" class="text-xs text-muted-foreground">Aucun élément</span>
+  </div>
+  <div class="flex gap-2">
+    <input class="input" type="text" x-model="draft" @keydown.enter.prevent="add()"
+           th:placeholder="${placeholder != null ? placeholder : 'Ajouter…'}">
+    <button type="button" class="btn" data-variant="outline" data-size="icon" @click="add()"
+            th:utext="${icons.svg('plus', 'h-4 w-4')}"></button>
+  </div>
+</div>
+
+<!--/* M3DatePicker / M3DateTimePicker. */-->
+<div th:fragment="datePicker(id, name, value, label, withTime, placeholder)" class="relative"
+     th:attr="x-data=|datePicker({value: '${value != null ? value : ''}', withTime: ${withTime}})|"
+     @keydown.escape="open = false" @click.outside="open = false">
+  <input type="hidden" x-ref="input" th:name="${name}" :value="submitted">
+  <button type="button" th:id="${id}" class="btn w-full justify-start text-left font-normal h-10" data-variant="outline"
+          :class="selected ? '' : 'text-muted-foreground'" @click="open = !open" :aria-expanded="open">
+    <th:block th:utext="${icons.svg('calendar', 'mr-2 h-4 w-4 shrink-0')}"></th:block>
+    <span class="truncate" x-text="selected ? display : $el.dataset.placeholder"
+          th:attr="data-placeholder=${placeholder != null ? placeholder : (withTime ? 'Choisir date & heure' : 'Choisir une date')}"></span>
+  </button>
+  <div x-show="open" x-cloak x-transition.opacity
+       class="absolute left-0 top-full z-50 mt-1 w-auto rounded-2xl border border-border bg-popover p-0 text-popover-foreground shadow-xl">
+    <div class="w-[340px] bg-popover rounded-2xl overflow-hidden">
+      <div class="bg-primary/10 px-6 py-4 border-b border-border">
+        <div class="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+             th:text="${label != null ? label : (withTime ? 'Date & heure' : 'Date sélectionnée')}"></div>
+        <div class="mt-1 text-2xl font-semibold text-foreground" x-text="headerDate"></div>
+      </div>
+      <div class="flex items-center gap-2 px-3 pt-3">
+        <select class="h-9 flex-1 rounded-md bg-transparent px-3 text-sm font-medium hover:bg-accent focus:outline-hidden"
+                :value="month.getMonth()" @change="setMonthIndex($event.target.value)">
+          <template x-for="(m, i) in months" :key="i"><option :value="i" x-text="m" :selected="i === month.getMonth()"></option></template>
+        </select>
+        <select class="h-9 w-[88px] rounded-md bg-transparent px-3 text-sm font-medium hover:bg-accent focus:outline-hidden"
+                @change="setYear($event.target.value)">
+          <template x-for="y in years" :key="y"><option :value="y" x-text="y" :selected="y === month.getFullYear()"></option></template>
+        </select>
+        <div class="flex">
+          <button type="button" class="btn h-9 w-9 rounded-full" data-variant="ghost" data-size="icon" aria-label="Mois précédent"
+                  @click="shift(-1)" th:utext="${icons.svg('chevron-left', 'h-4 w-4')}"></button>
+          <button type="button" class="btn h-9 w-9 rounded-full" data-variant="ghost" data-size="icon" aria-label="Mois suivant"
+                  @click="shift(1)" th:utext="${icons.svg('chevron-right', 'h-4 w-4')}"></button>
+        </div>
+      </div>
+      <div class="p-3">
+        <div class="flex">
+          <th:block th:each="d : ${ {'lu','ma','me','je','ve','sa','di'} }">
+            <div class="text-muted-foreground rounded-md w-10 h-8 font-medium text-[0.7rem] uppercase flex items-center justify-center" th:text="${d}"></div>
+          </th:block>
+        </div>
+        <template x-for="(week, wi) in weeks" :key="wi">
+          <div class="flex w-full mt-1">
+            <template x-for="day in week" :key="day.date.toISOString()">
+              <div class="h-10 w-10 text-center text-sm p-0 relative">
+                <button type="button" class="btn h-10 w-10 p-0 font-normal rounded-full" data-variant="ghost"
+                        :class="{
+                          'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground': day.selected,
+                          'border border-primary text-primary': day.today && !day.selected,
+                          'text-muted-foreground/40': day.outside && !day.selected
+                        }"
+                        @click="pick(day.date)" x-text="day.date.getDate()"></button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="flex items-center justify-end gap-1 px-3 pb-3">
+        <button type="button" class="btn rounded-full" data-variant="ghost" data-size="sm" @click="today()">Aujourd'hui</button>
+      </div>
+    </div>
+    <div th:if="${withTime}" class="flex items-center gap-2 border-t border-border px-4 py-3">
+      <th:block th:utext="${icons.svg('clock', 'h-4 w-4 text-muted-foreground')}"></th:block>
+      <label class="label text-xs text-muted-foreground" th:for="${id + '-time'}">Heure</label>
+      <input class="input h-9 w-[110px] ml-auto" type="time" step="900" th:id="${id + '-time'}" x-model="time">
+      <button type="button" class="btn rounded-full" data-size="sm" :disabled="!selected" @click="open = false">OK</button>
+    </div>
+  </div>
+</div>
+
+<!--/* Dialog générique (Dialog shadcn) : <dialog> natif, ouvert par showModal(). size ∈ sm|md|lg|xl|2xl|3xl. */-->
+<dialog th:fragment="dialog(id, title, description, size, body, footer)" th:id="${id}" class="dialog"
+        th:attr="aria-labelledby=${id + '-title'}">
+  <div th:class="|max-w-${size != null ? size : 'lg'} max-h-[90vh] overflow-y-auto|">
+    <header>
+      <h2 th:id="${id + '-title'}" th:text="${title}" class="font-display text-2xl"></h2>
+      <p th:if="${description != null}" th:text="${description}"></p>
+    </header>
+    <div class="space-y-4" th:insert="${body}"></div>
+    <th:block th:if="${footer != null}"><footer th:insert="${footer}"></footer></th:block>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </div>
+</dialog>
+
+<!--/* Pied de FormDialog : « Annuler » (ghost) + soumission (hero) qui affiche « Enregistrement… » pendant la requête. */-->
+<th:block th:fragment="formDialogFooter(submitLabel)">
+  <button type="button" class="btn" data-variant="ghost" onclick="this.closest('dialog').close()">Annuler</button>
+  <button type="submit" class="btn group" data-variant="hero">
+    <span class="group-[.htmx-request]:hidden" th:text="${submitLabel != null ? submitLabel : 'Enregistrer'}"></span>
+    <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+  </button>
+</th:block>
+
+<!--/* ConfirmDialog (AlertDialog) : la confirmation déclenche un hx-delete vers `deleteUrl`. */-->
+<dialog th:fragment="confirmDialog(id, title, description, confirmLabel, deleteUrl, target)" th:id="${id}" class="alert-dialog">
+  <div>
+    <header>
+      <h2 th:text="${title}"></h2>
+      <p th:utext="${description}"></p>
+    </header>
+    <footer>
+      <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+      <button type="button" class="btn" data-variant="destructive"
+              th:attr="hx-delete=${deleteUrl}, hx-target=${target}, hx-swap='outerHTML'"
+              onclick="this.closest('dialog').close()"
+              th:text="${confirmLabel != null ? confirmLabel : 'Supprimer'}"></button>
+    </footer>
+  </div>
+</dialog>

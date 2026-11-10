@@ -1,0 +1,17 @@
+<!-- Toasts (rendu « sonner »). Déclenchés par HX-Trigger {"toast": {...}} ou par un flash serveur. -->
+<section th:fragment="toaster(toast)" class="toaster" aria-live="polite"
+         th:attr="x-data=${toast != null}
+           ? |toaster({message: '${#strings.escapeJavaScript(toast.message)}', category: '${#strings.toLowerCase(toast.category)}'})|
+           : 'toaster(null)'"
+         @toast.window="add($event.detail)">
+  <template x-for="t in toasts" :key="t.id">
+    <div class="toast" role="status" :data-category="t.category" :aria-hidden="!t.visible">
+      <div class="toast-content">
+        <span x-show="t.category === 'success'" th:utext="${icons.svg('circle-check')}"></span>
+        <span x-show="t.category === 'error'" th:utext="${icons.svg('circle-x')}"></span>
+        <span x-show="t.category === 'info'" th:utext="${icons.svg('info')}"></span>
+        <section><h2 x-text="t.message"></h2></section>
+      </div>
+    </div>
+  </template>
+</section>

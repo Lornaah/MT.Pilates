@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head><title>Catalogue UI — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="content">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Développement', 'Catalogue UI', 'Tous les composants, pour la recette visuelle.', ~{::themeSwitch}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <div th:fragment="themeSwitch" class="flex gap-2">
+      <a href="?theme=default" class="btn" data-variant="outline" data-size="sm">Thème par défaut</a>
+      <a href="?theme=dark" class="btn" data-variant="outline" data-size="sm">Thème sombre</a>
+    </div>
+  </th:block>
+
+  <main class="container py-8 space-y-10">
+    <section class="space-y-3">
+      <h2 class="font-display text-2xl">Boutons</h2>
+      <div class="flex flex-wrap gap-3 items-center">
+        <th:block th:each="v : ${ {'default','destructive','outline','secondary','ghost','link','hero','cream','sage'} }">
+          <button class="btn" th:attr="data-variant=${v}" th:text="${v}"></button>
+        </th:block>
+        <span class="inline-flex rounded-full bg-foreground p-2">
+          <button class="btn" data-variant="outlineLight">outlineLight</button>
+        </span>
+      </div>
+      <div class="flex flex-wrap gap-3 items-center">
+        <button class="btn" data-size="sm">Petit</button>
+        <button class="btn">Défaut</button>
+        <button class="btn" data-size="lg">Grand</button>
+        <button class="btn" data-size="icon" aria-label="Ajouter" th:utext="${icons.svg('plus', 'h-4 w-4')}"></button>
+        <button class="btn" disabled>Désactivé</button>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="font-display text-2xl">Badges</h2>
+      <div class="flex flex-wrap gap-2">
+        <th:block th:each="v : ${ {'default','secondary','destructive','outline','success','warm','pop','coach','sage','bordeaux'} }">
+          <span class="badge" th:attr="data-variant=${v}" th:text="${v}"></span>
+        </th:block>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-4">
+      <div th:replace="~{fragments/ui/components :: statCard('Membres actifs', '42', null, 'users', 'primary')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Reste à percevoir', '1 250,00 €', 'Sur 12 abonnés', 'banknote', 'accent')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('En pause', '3', null, 'users', 'sage')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Archivés', '7', null, 'users', 'secondary')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Sombre', '12', null, 'flame', 'dark')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Total', '64', null, 'users', 'default')}"></div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-6">
+      <div class="card">
+        <header><h3>Formulaire</h3><p>Champs reproduisant shadcn/ui.</p></header>
+        <section class="space-y-4">
+          <div class="space-y-2">
+            <label class="label" for="demo-email">Email<span class="text-destructive ml-0.5">*</span></label>
+            <input class="input" id="demo-email" type="email" placeholder="vous@exemple.fr">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="demo-status">Statut</label>
+            <select class="select" id="demo-status">
+              <option>Actif</option><option>En pause</option><option>Archivé</option><option>Terminé</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="demo-notes">Notes</label>
+            <textarea class="textarea" id="demo-notes" rows="3" placeholder="Observations, points d'attention…"></textarea>
+          </div>
+          <label class="flex items-center gap-2 text-sm"><input class="input" type="checkbox" checked> Se souvenir de moi</label>
+          <label class="flex items-center gap-2 text-sm"><input class="input" type="checkbox" role="switch" checked> Publié</label>
+          <input class="slider" type="range" min="1000" max="4000" step="50" value="2000">
+          <div class="space-y-2">
+            <label class="label" for="demo-date">Date de naissance</label>
+            <div th:replace="~{fragments/ui/components :: datePicker('demo-date', 'dateOfBirth', '1990-05-14', 'Date de naissance', false, null)}"></div>
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="demo-datetime">RDV de closing</label>
+            <div th:replace="~{fragments/ui/components :: datePicker('demo-datetime', 'appointmentAt', null, 'RDV de closing', true, null)}"></div>
+          </div>
+          <div class="space-y-2">
+            <span class="label">Pathologies</span>
+            <div th:replace="~{fragments/ui/components :: tagInput('pathologies', ${ {'Asthme'} }, 'Hernie discale, asthme…', 'secondary')}"></div>
+          </div>
+        </section>
+        <footer class="gap-2">
+          <button class="btn" data-variant="hero">Enregistrer</button>
+        </footer>
+      </div>
+
+      <div class="space-y-6">
+        <div class="tabs" x-data="{ tab: 'liste' }">
+          <nav role="tablist" aria-orientation="horizontal">
+            <button type="button" role="tab" :aria-selected="tab === 'liste'" @click="tab = 'liste'">Liste</button>
+            <button type="button" role="tab" :aria-selected="tab === 'mois'" @click="tab = 'mois'">Mois</button>
+          </nav>
+          <div role="tabpanel" x-show="tab === 'liste'" class="text-sm">Contenu de l'onglet Liste.</div>
+          <div role="tabpanel" x-show="tab === 'mois'" x-cloak class="text-sm">Contenu de l'onglet Mois.</div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 items-center">
+          <button class="btn" data-variant="outline" onclick="document.getElementById('demo-dialog').showModal()">Ouvrir un dialog</button>
+          <button class="btn" data-variant="destructive" onclick="document.getElementById('demo-confirm').showModal()">Supprimer…</button>
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button class="btn" data-variant="outline" @click="open = !open">Popover</button>
+            <div data-popover :aria-hidden="!open" class="mt-1">Contenu du popover.</div>
+          </div>
+          <button class="btn" data-variant="ghost" data-tooltip="Menu latéral" data-side="bottom">Tooltip</button>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button class="btn" data-variant="outline" hx-post="/dev/ui/toast?category=success" hx-swap="none">Toast succès</button>
+          <button class="btn" data-variant="outline" hx-post="/dev/ui/toast?category=error" hx-swap="none">Toast erreur</button>
+          <button class="btn" data-variant="outline" hx-post="/dev/ui/toast?category=info" hx-swap="none">Toast info</button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <th:block th:replace="~{fragments/ui/components :: userAvatar(null, 'm', 'sm')}"></th:block>
+          <th:block th:replace="~{fragments/ui/components :: userAvatar(null, 'm', 'md')}"></th:block>
+          <th:block th:replace="~{fragments/ui/components :: userAvatar(null, 'm', 'lg')}"></th:block>
+          <th:block th:replace="~{fragments/ui/components :: userAvatar(@{/images/logo-icon.png}, 'm', 'xl')}"></th:block>
+          <th:block th:replace="~{fragments/ui/components :: loadingSpinner('inline')}"></th:block>
+        </div>
+
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Abonné</th><th>Statut</th><th>Reste</th></tr></thead>
+            <tbody>
+              <tr><td>Camille Martin</td><td><span class="badge" data-variant="success">Actif</span></td><td>120,00 €</td></tr>
+              <tr><td>Léa Dubois</td><td><span class="badge" data-variant="warm">En pause</span></td><td>0,00 €</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div th:replace="~{fragments/ui/components :: emptyState('file-text', 'Aucun document', 'Téléverse ton premier document pour le partager avec ton équipe ou tes membres.', null)}"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog th:replace="~{fragments/ui/components :: dialog('demo-dialog', 'Nouvel événement', null, 'lg', ~{::demoBody}, ~{::demoFooter})}"></dialog>
+  <th:block th:if="${false}">
+  <div th:fragment="demoBody" class="space-y-2">
+    <label class="label" for="demo-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+    <input class="input" id="demo-title" type="text">
+  </div>
+  <th:block th:fragment="demoFooter"><th:block th:replace="~{fragments/ui/components :: formDialogFooter('Créer')}"></th:block></th:block>
+  </th:block>
+  <dialog th:replace="~{fragments/ui/components :: confirmDialog('demo-confirm', 'Supprimer ce membre ?', 'La fiche de <strong>Camille Martin</strong> sera définitivement supprimée.', null, '/dev/ui/none', 'body')}"></dialog>
+</th:block>
+</body>
+</html>

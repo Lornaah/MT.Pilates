@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<body>
+<th:block layout:fragment="content">
+  <div class="flex min-h-screen items-center justify-center bg-muted">
+    <div class="text-center">
+      <h1 class="mb-4 text-4xl font-bold" th:text="${status}">500</h1>
+      <p class="mb-4 text-xl text-muted-foreground">Erreur inattendue</p>
+      <a th:href="@{/}" class="text-primary underline hover:text-primary/90">Revenir à l'accueil</a>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>

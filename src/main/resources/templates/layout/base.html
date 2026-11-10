@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      th:attr="data-theme=${theme}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title layout:title-pattern="$CONTENT_TITLE">MT Pilates — Coach Pilates en ligne &amp; studio</title>
+  <meta name="description" content="MT Pilates : cours de Pilates en vidéo et en studio, suivi personnalisé par votre coach Marion Tanet. Espace membre privé pour pratiquer à votre rythme.">
+  <meta name="author" content="MT Pilates">
+  <link rel="icon" th:href="@{/favicon.png}" type="image/png">
+
+  <link rel="manifest" th:href="@{/manifest.json}">
+  <meta name="theme-color" content="#E8927C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MT Pilates">
+  <link rel="apple-touch-icon" th:href="@{/pwa-icon-192.png}">
+
+  <meta property="og:title" content="MT Pilates — Coach Pilates en ligne &amp; studio">
+  <meta property="og:description" content="Cours de Pilates en vidéo et en studio, suivi personnalisé par votre coach Marion Tanet.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/pwa-icon-512.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@MTPilates">
+  <meta name="twitter:image" content="/pwa-icon-512.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&amp;family=Inter:wght@300;400;500;600&amp;display=swap">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+
+  <script th:src="@{/vendor/htmx.min.js}" defer></script>
+  <script th:src="@{/js/app.js}" defer></script>
+  <script th:src="@{/vendor/alpine.min.js}" defer></script>
+  <th:block layout:fragment="head"></th:block>
+</head>
+<body th:attr="hx-headers=${_csrf != null} ? |{&quot;${_csrf.headerName}&quot;: &quot;${_csrf.token}&quot;}| : null">
+  <th:block layout:fragment="content"></th:block>
+  <div th:replace="~{fragments/ui/toaster :: toaster(${toast})}"></div>
+</body>
+</html>
