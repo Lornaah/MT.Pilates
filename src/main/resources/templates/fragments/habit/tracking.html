@@ -1,0 +1,47 @@
+<!--/* MemberHabitsTrackingCard : bandeau par habitude sur 7 / 30 / 90 jours, série, taux de complétion. */-->
+<div th:fragment="card" id="habit-tracking" th:with="t=${habitTracking}">
+  <div th:if="${t.habitCount() == 0}" class="card">
+    <section class="py-10 text-center text-sm text-muted-foreground">Aucune habitude assignée à ce membre.</section>
+  </div>
+  <div th:unless="${t.habitCount() == 0}" class="card">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 class="font-display text-lg leading-7">Suivi des habitudes</h3>
+        <p class="text-xs text-muted-foreground mt-1">
+          <th:block th:text="|${t.habitCount()} habitude${t.habitCount() > 1 ? 's' : ''} · |"></th:block><span class="font-medium text-foreground" th:text="|${t.globalRate()}%|"></span> de complétion sur la période
+        </p>
+      </div>
+      <div class="tabs">
+        <nav role="tablist">
+          <button th:each="r : ${ {7, 30, 90} }" type="button" role="tab" th:aria-selected="${t.range() == r}" th:text="|${r} jours|"
+                  th:attr="hx-get=@{/app/members/{id}/habits(id=${memberId}, range=${r})}" hx-target="#habit-tracking" hx-swap="outerHTML"></button>
+        </nav>
+      </div>
+    </header>
+    <section class="space-y-2">
+      <div th:each="h : ${t.habits()}" class="flex flex-col gap-3 rounded-lg border bg-card/50 p-3 sm:flex-row sm:items-center">
+        <div class="flex items-center gap-3 sm:w-56 sm:shrink-0">
+          <div class="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0" th:utext="${icons.svg(h.icon(), 'h-4 w-4')}"></div>
+          <div class="min-w-0">
+            <div class="font-medium text-sm truncate" th:text="${h.title()}"></div>
+            <div class="text-[11px] text-muted-foreground" th:text="|Série : ${h.streak()}j|"></div>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex gap-[2px] h-6" role="img" th:aria-label="|Complétions sur ${t.range()} jours|">
+            <div th:each="d : ${h.days()}" th:title="${d.title()}" class="flex-1 rounded-sm transition-colors"
+                 th:classappend="${d.done()} ? 'bg-primary' : 'bg-muted'"></div>
+          </div>
+          <div class="flex justify-between mt-1 text-[10px] text-muted-foreground">
+            <span th:text="${t.fromLabel()}"></span>
+            <span th:text="#{habits.tracking.today}"></span>
+          </div>
+        </div>
+        <div class="flex gap-2 sm:flex-col sm:items-end sm:w-24 sm:shrink-0">
+          <span class="badge font-mono" data-variant="secondary" th:text="|${h.rate()}%|"></span>
+          <span class="text-[11px] text-muted-foreground" th:text="|${h.done()}/${t.range()}j|"></span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

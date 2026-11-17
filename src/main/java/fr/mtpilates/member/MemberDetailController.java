@@ -7,6 +7,7 @@ import fr.mtpilates.shared.web.ToastResponses;
 import jakarta.servlet.http.HttpServletResponse;
 import fr.mtpilates.tracking.MemberPhotoService;
 import fr.mtpilates.tracking.TrackingChartService;
+import fr.mtpilates.habit.HabitService;
 import fr.mtpilates.training.PlanningService;
 import fr.mtpilates.video.VideoService;
 import java.time.Clock;
@@ -31,6 +32,7 @@ public class MemberDetailController {
     private final TrackingChartService chart;
     private final VideoService videos;
     private final PlanningService planning;
+    private final HabitService habits;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
     private final Clock clock;
@@ -38,13 +40,14 @@ public class MemberDetailController {
     public MemberDetailController(final MemberService members, final MemberDocumentService documents,
                                   final MemberPhotoService photos, final TrackingChartService chart,
                                   final VideoService videos, final PlanningService planning,
-                                  final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
+                                  final HabitService habits, final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
         this.members = members;
         this.documents = documents;
         this.photos = photos;
         this.chart = chart;
         this.videos = videos;
         this.planning = planning;
+        this.habits = habits;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
         this.clock = clock;
@@ -64,6 +67,7 @@ public class MemberDetailController {
         model.addAttribute("chartPoints", chart.points(user, id));
         model.addAttribute("videoHistory", videos.history(user, id));
         model.addAttribute("hasPrograms", planning.hasPrograms(id));
+        model.addAttribute("habitTracking", habits.tracking(user, id, 30));
         model.addAttribute("programSections", planning.memberPrograms(user, id));
         return "pages/member-detail";
     }

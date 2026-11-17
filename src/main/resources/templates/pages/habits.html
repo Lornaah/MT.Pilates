@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Habitudes — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div x-data="{ search: '' }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Habitudes', 'Crée des habitudes globales ou assignées à tes coachés.', ~{::newHabit}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <button th:fragment="newHabit" type="button" class="btn" hx-get="/app/coach/habits/new" hx-target="#habit-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouvelle
+      </button>
+    </th:block>
+    <div class="container py-8 space-y-6">
+      <div class="relative w-full md:max-w-sm">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Rechercher…" aria-label="Rechercher" x-model="search">
+      </div>
+      <div th:replace="~{::grid}"></div>
+      <div id="habit-dialog-slot"></div>
+    </div>
+  </div>
+</th:block>
+
+<div th:fragment="grid" id="habit-grid"
+     x-data="{ visible: 0, refresh() { this.$nextTick(() => { this.visible = [...this.$root.querySelectorAll('[data-habit]')].filter((el) => this.matches(el)).length; }); },
+               matches(el) { const q = search.trim().toLowerCase(); return !q || el.dataset.search.includes(q); } }"
+     x-init="refresh(); $watch('search', () => refresh())">
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('sparkles', 'Aucune habitude', 'Crée ta première habitude pour la proposer à tes membres.', null)}"></div>
+  </template>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" x-show="visible > 0">
+    <div th:each="h : ${habits}" class="card hover:shadow-elevated transition-shadow" data-habit
+         th:data-search="${#strings.toLowerCase(h.title() + ' ' + h.description().orElse(''))}" x-show="matches($el)">
+      <section class="pt-5 pb-4 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <div class="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0"
+                 th:utext="${icons.svg(h.icon(), 'h-5 w-5')}"></div>
+            <div class="min-w-0">
+              <div class="font-display text-lg leading-tight" th:text="${h.title()}"></div>
+              <div th:if="${h.description().isPresent()}" class="text-xs text-muted-foreground mt-1 line-clamp-2" th:text="${h.description().get()}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="badge" th:attr="data-variant=${h.frequencyVariant()}" th:text="${h.frequencyLabel()}"></span>
+          <span th:if="${h.global()}" class="badge" data-variant="sage">
+            <th:block th:utext="${icons.svg('earth', 'h-3 w-3 mr-1')}"></th:block> Globale
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-2">
+          <button th:unless="${h.global()}" type="button" class="btn" data-variant="outline" data-size="sm"
+                  th:attr="hx-get=@{/app/coach/habits/{id}/assign(id=${h.id()})}" hx-target="#habit-dialog-slot" hx-swap="innerHTML">
+            <th:block th:utext="${icons.svg('users', 'h-4 w-4')}"></th:block> Assigner
+          </button>
+          <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Éditer"
+                  th:attr="hx-get=@{/app/coach/habits/{id}/edit(id=${h.id()})}" hx-target="#habit-dialog-slot" hx-swap="innerHTML"
+                  th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+          <th:block th:with="dialogId=|delete-habit-${h.id()}|">
+            <button type="button" class="btn text-destructive hover:text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                    th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                    th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+            <dialog class="alert-dialog" th:id="${dialogId}">
+              <div>
+                <header><h2 th:text="#{habits.delete.title}"></h2><p th:text="#{habits.delete.description}"></p></header>
+                <footer>
+                  <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                  <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/habits/{id}(id=${h.id()})}"
+                          hx-target="#habit-grid" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                </footer>
+              </div>
+            </dialog>
+          </th:block>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog th:fragment="habitDialog" id="habit-form" class="dialog" aria-labelledby="habit-form-title" x-data x-init="$el.showModal()">
+  <form class="max-h-[90vh] overflow-y-auto" th:attr="hx-post=${habit == null ? '/app/coach/habits' : '/app/coach/habits/' + habit.id()}"
+        hx-target="#habit-grid" hx-swap="outerHTML" hx-indicator="find button[type=submit]"
+        th:data-icon="${habit == null ? 'sparkles' : habit.iconName()}" x-data="{ icon: $el.dataset.icon }">
+    <header><h2 id="habit-form-title" class="font-display text-2xl leading-8" th:text="${habit == null ? 'Nouvelle habitude' : #messages.msg('habits.edit.title')}"></h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="habit-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="habit-title" type="text" name="title" required th:value="${habit?.title()}" th:placeholder="#{habits.placeholder}">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="habit-description">Description</label>
+        <textarea class="textarea" id="habit-description" name="description" rows="3" th:placeholder="#{habits.description.placeholder}"
+                  th:text="${habit == null ? '' : habit.description().orElse('')}"></textarea>
+      </div>
+      <div class="space-y-2">
+        <label class="label">Icône</label>
+        <input type="hidden" name="icon" :value="icon">
+        <div class="grid grid-cols-7 gap-2 max-h-48 overflow-y-auto p-1">
+          <button th:each="name : ${iconNames}" type="button" th:title="${name}" th:data-name="${name}" @click="icon = $el.dataset.name"
+                  :class="icon === $el.dataset.name ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent'"
+                  class="h-10 w-10 rounded-xl flex items-center justify-center border transition-colors"
+                  th:utext="${icons.svg(habitIcons.get(name), 'h-4 w-4')}"></button>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="habit-frequency">Fréquence</label>
+        <select class="select" id="habit-frequency" name="frequency">
+          <option value="daily" th:selected="${habit == null or habit.frequency() == 'daily'}">Quotidien</option>
+          <option value="weekly" th:selected="${habit != null and habit.frequency() == 'weekly'}">Hebdomadaire</option>
+          <option value="custom" th:selected="${habit != null and habit.frequency() == 'custom'}">Personnalisé</option>
+        </select>
+      </div>
+      <div class="flex items-center justify-between rounded-lg border p-3">
+        <div>
+          <label class="label cursor-pointer" for="habit-global">Habitude globale</label>
+          <p class="text-xs text-muted-foreground">Visible automatiquement par tous les membres.</p>
+        </div>
+        <input type="hidden" name="global" value="false">
+        <input class="input" type="checkbox" role="switch" id="habit-global" name="global" value="true" th:checked="${habit != null and habit.global()}">
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<dialog th:fragment="assignDialog" id="habit-assign" class="dialog" aria-labelledby="habit-assign-title" x-data x-init="$el.showModal()">
+  <form class="max-w-lg max-h-[90vh] overflow-hidden flex flex-col" th:attr="hx-post=@{/app/coach/habits/{id}/assign(id=${habit.id()})}"
+        hx-target="#habit-grid" hx-swap="outerHTML"
+        x-data="{ search: '', count: 0, recount() { this.count = this.$root.querySelectorAll('input[name=userIds]:checked').length; } }"
+        x-init="recount()" @change="recount()">
+    <header><h2 id="habit-assign-title" class="font-display text-2xl leading-8" th:text="|Assigner « ${habit.title()} »|"></h2></header>
+    <input class="input" type="text" placeholder="Rechercher un élève…" x-model="search" aria-label="Rechercher un élève">
+    <div class="flex-1 max-h-[50vh] overflow-y-auto pr-3">
+      <div class="space-y-1">
+        <p th:if="${assignees.isEmpty()}" class="text-sm text-muted-foreground py-6 text-center">Aucun membre actif trouvé.</p>
+        <label th:each="m : ${assignees}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer"
+               th:data-search="${#strings.toLowerCase(m.name() + ' ' + m.email())}"
+               x-show="!search.trim() || $el.dataset.search.includes(search.trim().toLowerCase())">
+          <input class="input" type="checkbox" name="userIds" th:value="${m.id()}" th:checked="${m.selected()}">
+          <div class="min-w-0">
+            <div class="text-sm font-medium truncate" th:text="${m.name()}"></div>
+            <div class="text-xs text-muted-foreground truncate" th:text="${m.email()}"></div>
+          </div>
+        </label>
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+      <button type="submit" class="btn" x-text="`Enregistrer (${count})`">Enregistrer</button>
+    </footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+</body>
+</html>

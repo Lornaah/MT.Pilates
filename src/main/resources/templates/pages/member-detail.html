@@ -121,7 +121,6 @@
                 <th:block th:utext="${icons.svg('video', 'h-4 w-4 mr-1')}"></th:block> Vidéos
               </button>
             </nav>
-            <!--/* Contenu de l'onglet Habitudes branché par le module M8. */-->
             <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program">
               <div class="card">
                 <header class="flex flex-row items-center justify-between">
@@ -157,7 +156,9 @@
                 </section>
               </div>
             </div>
-            <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits">
+              <div th:replace="~{fragments/habit/tracking :: card}"></div>
+            </div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents">
               <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>
             </div>

@@ -1,0 +1,18 @@
+<!--/* MyHabitsCard : habitudes du jour du membre (globales + assignées), série en cours. Rien si aucune habitude. */-->
+<div th:fragment="card" id="my-habits" th:unless="${myHabits.isEmpty()}" class="card">
+  <header><h3 class="font-display text-xl leading-7">Mes habitudes du jour</h3></header>
+  <section class="space-y-2">
+    <label th:each="h : ${myHabits}" class="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/50 cursor-pointer transition-colors">
+      <input class="input" type="checkbox" th:checked="${h.checked()}"
+             th:attr="hx-post=@{/app/habits/{id}/toggle(id=${h.id()})}" hx-trigger="change" hx-target="#my-habits" hx-swap="outerHTML">
+      <div class="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0" th:utext="${icons.svg(h.icon(), 'h-4 w-4')}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-medium" th:classappend="${h.checked()} ? 'line-through text-muted-foreground'" th:text="${h.title()}"></div>
+        <div th:if="${h.description().isPresent()}" class="text-xs text-muted-foreground truncate" th:text="${h.description().get()}"></div>
+      </div>
+      <span th:if="${h.streak() > 0}" class="badge gap-1" data-variant="secondary">
+        <th:block th:utext="${icons.svg('flame', 'h-3 w-3')}"></th:block> <th:block th:text="${h.streak()}"></th:block>
+      </span>
+    </label>
+  </section>
+</div>
