@@ -1,0 +1,49 @@
+<!--/*
+  ExerciseAttributesEditor : 5 attributs maximum parmi les 14 types. La liste est envoyée en JSON dans `name` ;
+  les métadonnées des types viennent du serveur (attributeTypes).
+*/-->
+<div th:fragment="editor(name, json)" class="space-y-3"
+     th:data-attributes="${json}" th:data-types="${attributeTypesJson}"
+     x-data="attributesEditor(JSON.parse($el.dataset.attributes), JSON.parse($el.dataset.types))">
+  <input type="hidden" th:name="${name}" :value="JSON.stringify(attrs)">
+  <div class="flex items-center justify-between">
+    <label class="label">Attributs par défaut</label>
+    <span class="text-xs text-muted-foreground" x-text="`${attrs.length} / 5`"></span>
+  </div>
+  <p x-show="attrs.length === 0" class="text-sm text-muted-foreground italic">Aucun attribut. Cliquez sur « Ajouter un attribut ».</p>
+  <div class="space-y-2">
+    <template x-for="(attr, idx) in attrs" :key="idx">
+      <div class="flex items-center gap-2 rounded-md border p-2" x-show="meta(attr.type)">
+        <span class="min-w-[7rem] text-sm font-medium" x-text="meta(attr.type)?.label"></span>
+        <template x-if="meta(attr.type)?.kind === 'NUMBER'">
+          <input class="input flex-1" type="number" :value="attr.default ?? ''" @input="attr.default = Number($event.target.value)">
+        </template>
+        <template x-if="meta(attr.type)?.kind === 'STRING'">
+          <input class="input flex-1" type="text" :value="attr.default ?? ''" @input="attr.default = $event.target.value">
+        </template>
+        <template x-if="meta(attr.type)?.kind === 'BOOLEAN'">
+          <div class="flex-1">
+            <input class="input" type="checkbox" role="switch" :checked="Boolean(attr.default)" @change="attr.default = $event.target.checked">
+          </div>
+        </template>
+        <template x-if="meta(attr.type)?.kind === 'NONE'"><span class="flex-1 text-sm text-muted-foreground">—</span></template>
+        <span x-show="meta(attr.type)?.unit" class="text-xs text-muted-foreground" x-text="meta(attr.type)?.unit"></span>
+        <button type="button" class="btn" data-variant="ghost" data-size="icon" @click="remove(idx)"
+                th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+      </div>
+    </template>
+  </div>
+  <div x-show="pickerOpen" class="flex items-center gap-2">
+    <select class="select flex-1" x-model="pickerType" aria-label="Type d'attribut">
+      <template x-for="t in types" :key="t.code"><option :value="t.code" x-text="t.label" :selected="t.code === pickerType"></option></template>
+    </select>
+    <button type="button" class="btn" data-variant="hero" data-size="sm" @click="add()">Ajouter</button>
+    <button type="button" class="btn" data-variant="ghost" data-size="icon" @click="pickerOpen = false"
+            th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+  </div>
+  <button x-show="!pickerOpen" type="button" class="btn" data-variant="outline" data-size="sm" @click="pickerOpen = true"
+          :disabled="attrs.length >= 5">
+    <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block>
+    Ajouter un attribut
+  </button>
+</div>

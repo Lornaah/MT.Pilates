@@ -352,6 +352,82 @@ document.addEventListener("alpine:init", () => {
     };
   });
 
+  // Bibliothèque d'exercices : recherche, onglets (tous / mes / favoris) et filtres combinés, côté navigateur.
+  Alpine.data("exerciseFilters", () => ({
+    search: "",
+    tab: "all",
+    type: "all",
+    filters: { muscles: [], equipment: [], objectives: [] },
+    filtersOpen: false,
+    visible: 0,
+    init() {
+      ["search", "tab", "type", "filters"].forEach((key) => this.$watch(key, () => this.refresh(), { deep: true }));
+    },
+    has(key, value) { return this.filters[key].includes(value); },
+    toggleIn(key, value) {
+      this.filters[key] = this.has(key, value) ? this.filters[key].filter((v) => v !== value) : [...this.filters[key], value];
+    },
+    selectedOf(el) { return this.filters[el.closest("[data-key]").dataset.key]; },
+    get activeFilterCount() {
+      return ["muscles", "equipment", "objectives"].filter((k) => this.filters[k].length).length + (this.type !== "all" ? 1 : 0);
+    },
+    get hasFilters() { return Boolean(this.search) || this.activeFilterCount > 0; },
+    clear() {
+      this.search = "";
+      this.type = "all";
+      this.filters = { muscles: [], equipment: [], objectives: [] };
+    },
+    matches(el) {
+      const d = el.dataset;
+      if (this.tab === "favorites" && d.favorite !== "true") return false;
+      if (this.tab === "mine" && d.mine !== "true") return false;
+      if (this.search && !d.title.includes(this.search.toLowerCase())) return false;
+      if (this.type !== "all" && d.type !== this.type) return false;
+      const any = (key, values) => values.length === 0 || values.some((v) => JSON.parse(d[key]).includes(v));
+      return any("muscles", this.filters.muscles) && any("equipment", this.filters.equipment)
+        && any("objectives", this.filters.objectives);
+    },
+    refresh() {
+      this.$nextTick(() => {
+        this.visible = [...document.querySelectorAll("[data-exercise]")].filter((el) => this.matches(el)).length;
+      });
+    },
+  }));
+
+  // Saisie de tags avec suggestions (bibliothèque d'exercices) : Entrée ou virgule valide, Retour arrière retire le dernier.
+  Alpine.data("chipsInput", (initial = [], suggestions = []) => ({
+    values: [...initial],
+    suggestions,
+    draft: "",
+    get remaining() { return this.suggestions.filter((s) => !this.values.includes(s)).slice(0, 12); },
+    commit(raw) {
+      const tag = raw.trim();
+      if (!tag || this.values.includes(tag)) return;
+      this.values.push(tag);
+      this.draft = "";
+    },
+    remove(value) { this.values = this.values.filter((v) => v !== value); },
+    backspace() { if (!this.draft && this.values.length) this.values.pop(); },
+  }));
+
+  // Attributs par défaut d'un exercice (5 maximum) ; les types et leurs valeurs par défaut viennent du serveur.
+  Alpine.data("attributesEditor", (initial = [], types = []) => ({
+    attrs: initial,
+    types,
+    pickerOpen: false,
+    pickerType: "reps",
+    meta(code) { return this.types.find((t) => t.code === code); },
+    add() {
+      if (this.attrs.length >= 5) return;
+      const t = this.meta(this.pickerType);
+      const attr = { type: t.code, default: t.defaultValue ?? null };
+      if (["weight", "time", "rest"].includes(t.code)) attr.unit = t.unit;
+      this.attrs.push(attr);
+      this.pickerOpen = false;
+    },
+    remove(idx) { this.attrs.splice(idx, 1); },
+  }));
+
   // Saisie de tags (TagInput de l'original) : Entrée ou « + » ajoute, la croix retire.
   Alpine.data("tagInput", (initial = []) => ({
     tags: [...initial],

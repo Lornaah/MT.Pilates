@@ -1,0 +1,258 @@
+<!--/*
+  ExerciseLibrary. Recherche, filtres et onglets sont un état d'affichage (Alpine, filtrage côté navigateur comme
+  l'original) ; les actions passent par le serveur et re-rendent `results`.
+*/-->
+<div th:fragment="library" x-data="exerciseFilters">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', #{exercises.title}, 'Tous les exercices disponibles avec leurs attributs et vidéos liées.', ~{this :: createButton}, null, null, null)}"></div>
+  <div class="container py-6 space-y-4">
+    <div class="rounded-xl border bg-muted/30 p-2 flex items-center gap-2">
+      <div class="relative flex-1">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9 h-11 border-0 bg-transparent focus-visible:ring-0 shadow-none text-base" type="text"
+               placeholder="Rechercher un exercice…" aria-label="Rechercher un exercice" x-model="search">
+      </div>
+      <button type="button" class="btn text-muted-foreground" data-variant="ghost" data-size="sm" x-show="hasFilters" x-cloak
+              @click="clear()">
+        <th:block th:utext="${icons.svg('x', 'h-4 w-4')}"></th:block> Effacer
+      </button>
+      <div class="relative" @click.outside="filtersOpen = false" @keydown.escape="filtersOpen = false">
+        <button type="button" class="btn h-10 gap-2" data-variant="outline" data-size="sm" @click="filtersOpen = !filtersOpen">
+          <th:block th:utext="${icons.svg('sliders-horizontal', 'h-4 w-4')}"></th:block>
+          Filtres
+          <span x-show="activeFilterCount > 0" x-cloak class="badge ml-1 h-5 px-1.5 text-xs" data-variant="secondary"
+                x-text="activeFilterCount"></span>
+        </button>
+        <div x-show="filtersOpen" x-cloak
+             class="absolute right-0 top-full mt-1 z-50 w-[min(92vw,420px)] rounded-md border bg-popover text-popover-foreground shadow-md p-4 space-y-4">
+          <div class="space-y-2">
+            <label class="label text-xs leading-4 uppercase tracking-wide text-muted-foreground">Muscles</label>
+            <div th:replace="~{this :: multiSelect('muscles', 'Muscles principaux', ${library.muscleOptions()})}"></div>
+          </div>
+          <div class="space-y-2">
+            <label class="label text-xs leading-4 uppercase tracking-wide text-muted-foreground">Équipements</label>
+            <div th:replace="~{this :: multiSelect('equipment', 'Équipements', ${library.equipmentOptions()})}"></div>
+          </div>
+          <div class="space-y-2">
+            <label class="label text-xs leading-4 uppercase tracking-wide text-muted-foreground" for="exercise-filter-type">Type</label>
+            <select id="exercise-filter-type" class="select h-11 rounded-lg" x-model="type">
+              <option value="all" selected>Tous les types</option>
+              <option th:each="t : ${library.typeOptions()}" th:value="${t}" th:text="${t}"></option>
+            </select>
+          </div>
+          <div th:unless="${library.objectiveOptions().isEmpty()}" class="space-y-2">
+            <label class="label text-xs leading-4 uppercase tracking-wide text-muted-foreground">Objectifs</label>
+            <div class="flex flex-wrap gap-2">
+              <button th:each="o : ${library.objectiveOptions()}" type="button" th:data-value="${o}"
+                      :aria-pressed="has('objectives', $el.dataset.value)" @click="toggleIn('objectives', $el.dataset.value)">
+                <span class="badge rounded-full cursor-pointer" th:text="${o}"
+                      :data-variant="has('objectives', $el.closest('button').dataset.value) ? 'default' : 'outline'"></span>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="btn w-full" data-variant="ghost" data-size="sm" x-show="hasFilters" @click="clear()">
+            <th:block th:utext="${icons.svg('x', 'h-4 w-4 mr-1')}"></th:block> Réinitialiser les filtres
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{this :: results}"></div>
+  </div>
+  <div id="exercise-dialog-slot"></div>
+</div>
+
+<button th:fragment="createButton" type="button" class="btn gap-2 h-11" data-size="lg"
+        hx-get="/app/coach/exercises/new" hx-target="#exercise-dialog-slot" hx-swap="innerHTML">
+  <th:block th:utext="${icons.svg('plus', 'h-5 w-5')}"></th:block>
+  Créer un exercice
+</button>
+
+<!--/* MultiSelect de l'original : liste à cocher dans un popover. `key` est la liste filtrée dans exerciseFilters. */-->
+<div th:fragment="multiSelect(key, placeholder, options)" class="relative" th:data-key="${key}" th:data-placeholder="${placeholder}"
+     x-data="{ open: false }" @click.outside="open = false">
+  <button type="button" @click="open = !open"
+          class="flex h-12 w-full items-center justify-between rounded-lg border border-input bg-background px-4 text-sm hover:bg-accent/30 transition-colors">
+    <span class="truncate" :class="selectedOf($el).length === 0 && 'text-muted-foreground'"
+          x-text="selectedOf($el).length === 0 ? $el.closest('[data-key]').dataset.placeholder : selectedOf($el).join(', ')"></span>
+    <th:block th:utext="${icons.svg('chevron-down', 'h-4 w-4 opacity-50 shrink-0 ml-2')}"></th:block>
+  </button>
+  <div x-show="open" x-cloak class="absolute left-0 top-full mt-1 z-50 w-full rounded-md border bg-popover shadow-md p-1 max-h-72 overflow-auto">
+    <button th:each="opt : ${options}" type="button" th:data-value="${opt}"
+            @click="toggleIn($el.closest('[data-key]').dataset.key, $el.dataset.value)"
+            class="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-accent text-sm text-left">
+      <div class="h-4 w-4 rounded-sm border flex items-center justify-center"
+           :class="has($el.closest('[data-key]').dataset.key, $el.closest('button').dataset.value) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'">
+        <span x-show="has($el.closest('[data-key]').dataset.key, $el.closest('button').dataset.value)"
+              th:utext="${icons.svg('check', 'h-3 w-3')}"></span>
+      </div>
+      <span class="flex-1" th:text="${opt}"></span>
+    </button>
+    <button type="button" x-show="selectedOf($el).length > 0" @click="filters[$el.closest('[data-key]').dataset.key] = []"
+            class="w-full mt-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground border-t">Tout effacer</button>
+  </div>
+</div>
+
+<div th:fragment="results" id="exercise-results" class="space-y-4" x-init="refresh()" @htmx:after-settle.window="refresh()">
+  <div class="grid gap-3 grid-cols-3">
+    <div th:replace="~{this :: tabCard('all', 'layout-grid', 'Tous', |${library.exercises().size()} exercices|, 'bg-primary/15 text-primary')}"></div>
+    <div th:replace="~{this :: tabCard('mine', 'user', 'Mes exercices', |${library.mine()} personnalisés|, 'bg-emerald-500/15 text-emerald-600')}"></div>
+    <div th:replace="~{this :: tabCard('favorites', 'heart', 'Favoris', |${library.favorites()} favoris|, 'bg-rose-500/15 text-rose-500')}"></div>
+  </div>
+
+  <div class="text-xs font-bold text-muted-foreground tracking-wide"
+       x-text="`${visible} EXERCICE${visible > 1 ? 'S' : ''}`"></div>
+
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('dumbbell', null,
+          ${library.exercises().isEmpty() ? 'Aucun exercice. Cliquez sur « Créer un exercice ».' : 'Aucun exercice ne correspond aux filtres.'}, null)}"></div>
+  </template>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" x-show="visible > 0">
+    <div th:each="ex : ${library.exercises()}" class="card overflow-hidden group hover:shadow-lg transition-shadow" data-exercise
+         th:data-title="${#strings.toLowerCase(ex.title())}" th:data-type="${ex.type()}"
+         th:data-muscles="${json.write(ex.muscleGroups())}" th:data-equipment="${json.write(ex.equipment())}"
+         th:data-objectives="${json.write(ex.objectives())}" th:data-mine="${ex.mine()}" th:data-favorite="${ex.favorite()}"
+         x-show="matches($el)">
+      <div class="aspect-square bg-muted relative">
+        <img th:if="${ex.thumbnail().isPresent()}" th:src="${ex.thumbnail().get()}" th:alt="${ex.title()}"
+             class="h-full w-full object-cover" loading="lazy">
+        <div th:unless="${ex.thumbnail().isPresent()}" class="flex h-full items-center justify-center text-muted-foreground"
+             th:utext="${icons.svg('dumbbell', 'h-12 w-12')}"></div>
+        <button type="button" class="absolute top-2 right-2 p-1.5 rounded-full bg-background/90 hover:bg-background shadow-sm"
+                aria-label="Favori" th:attr="hx-post=@{/app/coach/exercises/{id}/favorite(id=${ex.id()})}"
+                hx-target="#exercise-results" hx-swap="outerHTML"
+                th:utext="${icons.svg('heart', ex.favorite() ? 'h-4 w-4 fill-rose-500 text-rose-500' : 'h-4 w-4 text-muted-foreground')}"></button>
+      </div>
+      <div class="p-3 space-y-2">
+        <h3 class="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]" th:text="${ex.title()}"></h3>
+        <div class="flex flex-wrap gap-1">
+          <span th:each="m, it : ${ex.muscleGroups()}" th:if="${it.index < 2}" class="badge rounded-full text-[10px] px-1.5 py-0"
+                data-variant="secondary" th:text="${m}"></span>
+        </div>
+        <div class="flex items-center justify-between gap-1 pt-1 border-t">
+          <button type="button" class="btn h-9 w-9" data-variant="ghost" data-size="icon" th:aria-label="|Éditer ${ex.title()}|"
+                  th:attr="hx-get=@{/app/coach/exercises/{id}/edit(id=${ex.id()})}" hx-target="#exercise-dialog-slot"
+                  hx-swap="innerHTML" th:utext="${icons.svg('pencil', 'h-3.5 w-3.5')}"></button>
+          <button type="button" class="btn h-9 w-9" data-variant="ghost" data-size="icon" th:aria-label="|Dupliquer ${ex.title()}|"
+                  th:attr="hx-post=@{/app/coach/exercises/{id}/duplicate(id=${ex.id()})}" hx-target="#exercise-results"
+                  hx-swap="outerHTML" th:utext="${icons.svg('copy', 'h-3.5 w-3.5')}"></button>
+          <th:block th:with="dialogId=|delete-exercise-${ex.id()}|">
+            <button type="button" class="btn h-9 w-9 text-destructive" data-variant="ghost" data-size="icon"
+                    th:aria-label="|Supprimer ${ex.title()}|" th:attr="data-dialog=${dialogId}"
+                    onclick="document.getElementById(this.dataset.dialog).showModal()"
+                    th:utext="${icons.svg('trash-2', 'h-3.5 w-3.5')}"></button>
+            <dialog class="alert-dialog" th:id="${dialogId}">
+              <div>
+                <header><h2>Supprimer cet exercice ?</h2><p th:text="|« ${ex.title()} » sera définitivement supprimé.|"></p></header>
+                <footer>
+                  <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                  <button type="button" class="btn" data-variant="destructive"
+                          th:attr="hx-delete=@{/app/coach/exercises/{id}(id=${ex.id()})}" hx-target="#exercise-results"
+                          hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                </footer>
+              </div>
+            </dialog>
+          </th:block>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button th:fragment="tabCard(key, icon, title, subtitle, accent)" type="button" th:data-tab="${key}"
+        @click="tab = $el.dataset.tab"
+        :class="tab === $el.dataset.tab ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-border'"
+        class="relative flex items-center gap-3 rounded-xl border bg-card p-4 text-left transition-all hover:shadow-md">
+  <div th:class="|rounded-full p-2 shrink-0 ${accent}|" th:utext="${icons.svg(icon, 'h-5 w-5')}"></div>
+  <div class="min-w-0 flex-1">
+    <div class="font-semibold text-sm uppercase tracking-wide truncate" :class="tab === $el.closest('button').dataset.tab && 'text-primary'"
+         th:text="${title}"></div>
+    <div class="text-xs text-muted-foreground truncate" th:text="${subtitle}"></div>
+  </div>
+  <div x-show="tab === $el.closest('button').dataset.tab" class="absolute -top-1.5 -right-1.5 rounded-full bg-primary p-0.5"
+       th:utext="${icons.svg('check', 'h-3 w-3 text-primary-foreground')}"></div>
+</button>
+
+<!--/* FormDialog « Nouvel exercice » / « Modifier l'exercice », chargé à la demande. */-->
+<dialog th:fragment="exerciseDialog" id="exercise-form" class="dialog" aria-labelledby="exercise-form-title"
+        x-data x-init="$el.showModal()">
+  <form class="max-w-2xl max-h-[90vh] overflow-y-auto" hx-target="#exercise-results" hx-swap="outerHTML"
+        th:attr="hx-post=${exerciseId == null ? '/app/coach/exercises' : '/app/coach/exercises/' + exerciseId}"
+        hx-indicator="find button[type=submit]">
+    <header>
+      <h2 id="exercise-form-title" class="font-display text-2xl leading-8"
+          th:text="${exerciseId == null ? 'Nouvel exercice' : #messages.msg('exercises.edit')}"></h2>
+    </header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="exercise-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="exercise-title" type="text" name="title" th:value="${form.title()}" required>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="exercise-description">Description</label>
+        <textarea class="textarea" id="exercise-description" name="description" rows="3" th:text="${form.description()}"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <label class="label" for="exercise-video">URL vidéo complète</label>
+          <input class="input" id="exercise-video" type="text" name="videoUrl" placeholder="https://youtu.be/…" th:value="${form.videoUrl()}">
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="exercise-demo">URL démo courte</label>
+          <input class="input" id="exercise-demo" type="text" name="demoUrl" placeholder="https://…" th:value="${form.demoUrl()}">
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="exercise-thumbnail">URL miniature (optionnel)</label>
+        <input class="input" id="exercise-thumbnail" type="text" name="thumbnailUrl" th:value="${form.thumbnailUrl()}">
+      </div>
+      <div th:replace="~{this :: chipsInput('muscleGroups', 'Groupes musculaires', ${form.muscleGroups()}, ${muscleSuggestions})}"></div>
+      <div th:replace="~{this :: chipsInput('equipment', 'Équipement', ${form.equipment()}, ${equipmentSuggestions})}"></div>
+      <div class="space-y-2">
+        <label class="label">Objectifs ciblés</label>
+        <div th:replace="~{fragments/ui/components :: objectiveSelector('objectives', ${form.objectives()})}"></div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="exercise-type">Type d'exercice</label>
+        <input class="input" id="exercise-type" name="exerciseType" list="exercise-type-options"
+               placeholder="Choisir ou saisir un type…" th:value="${form.exerciseType()}">
+        <datalist id="exercise-type-options"><option th:each="t : ${typeOptions}" th:value="${t}"></option></datalist>
+        <p class="text-xs text-muted-foreground">Astuce : tapez un nouveau type pour le créer, il apparaîtra ensuite dans les filtres.</p>
+      </div>
+      <div th:replace="~{fragments/training/attributes :: editor('defaultAttributes', ${attributesJson})}"></div>
+      <div class="flex items-center gap-2">
+        <input type="hidden" name="published" value="false">
+        <input class="input" type="checkbox" role="switch" id="exercise-published" name="published" value="true"
+               th:checked="${form.published()}">
+        <label class="label cursor-pointer" for="exercise-published">Publié</label>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(${exerciseId == null ? 'Créer' : 'Enregistrer'})}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<!--/* TagInput de la bibliothèque : Entrée ou virgule valide, Retour arrière retire, suggestions cliquables. */-->
+<div th:fragment="chipsInput(name, label, values, suggestions)" class="space-y-2"
+     th:data-values="${json.write(values)}" th:data-suggestions="${json.write(suggestions)}"
+     x-data="chipsInput(JSON.parse($el.dataset.values), JSON.parse($el.dataset.suggestions))">
+  <label class="label" th:text="${label}"></label>
+  <div class="flex flex-wrap gap-2 rounded-md border p-2 min-h-[2.5rem]">
+    <template x-for="value in values" :key="value">
+      <span class="badge rounded-full" data-variant="secondary">
+        <span x-text="value"></span>
+        <button type="button" class="ml-1 hover:text-destructive" @click="remove(value)"
+                th:utext="${icons.svg('x', 'h-3 w-3')}"></button>
+        <input type="hidden" th:name="${name}" :value="value">
+      </span>
+    </template>
+    <input class="flex-1 min-w-[8rem] bg-transparent outline-hidden text-sm" x-model="draft" placeholder="Tapez puis Entrée…"
+           @keydown.enter.prevent="commit(draft)" @keydown.comma.prevent="commit(draft)" @keydown.backspace="backspace()">
+  </div>
+  <div class="flex flex-wrap gap-1" x-show="remaining.length > 0">
+    <template x-for="s in remaining" :key="s">
+      <button type="button" @click="commit(s)" x-text="`+ ${s}`"
+              class="text-xs px-2 py-0.5 rounded-full border text-muted-foreground hover:text-foreground hover:border-primary"></button>
+    </template>
+  </div>
+</div>

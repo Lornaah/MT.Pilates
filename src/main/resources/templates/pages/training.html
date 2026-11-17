@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Programme — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* TrainingHub : l'onglet actif est dans l'URL (?tab=), seul son contenu est rendu (comme Radix Tabs). */-->
+  <div class="container pt-6">
+    <div class="tabs">
+      <nav role="tablist">
+        <a role="tab" href="/app/coach/training?tab=programs" th:aria-selected="${tab == 'programs'}">
+          <th:block th:utext="${icons.svg('calendar-range', 'h-4 w-4 mr-1')}"></th:block> Programmes
+        </a>
+        <a role="tab" href="/app/coach/training?tab=sessions" th:aria-selected="${tab == 'sessions'}">
+          <th:block th:utext="${icons.svg('activity', 'h-4 w-4 mr-1')}"></th:block> Séances
+        </a>
+        <a role="tab" href="/app/coach/training?tab=exercises" th:aria-selected="${tab == 'exercises'}">
+          <th:block th:utext="${icons.svg('dumbbell', 'h-4 w-4 mr-1')}"></th:block> Exercices
+        </a>
+      </nav>
+      <div role="tabpanel" class="mt-4">
+        <th:block th:if="${tab == 'exercises'}"><div th:replace="~{fragments/training/exercises :: library}"></div></th:block>
+      </div>
+    </div>
+  </div>
+</th:block>
+</body>
+</html>
