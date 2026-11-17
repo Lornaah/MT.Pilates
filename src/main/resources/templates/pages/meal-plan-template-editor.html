@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Menu type — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    MealPlanTemplateEditor : tout l'état (paramètres, semaines, repas) vit dans Alpine ; « Brouillon » et « Publier »
+    l'envoient en JSON. Le titre de l'en-tête suit la saisie, comme l'original.
+  */-->
+  <form id="template-editor" onsubmit="return false" th:data-state="${stateJson}" th:data-recipes="${recipesJson}"
+        x-data="templateEditor(JSON.parse($el.dataset.state), JSON.parse($el.dataset.recipes))">
+    <input type="hidden" name="id" th:value="${templateId}">
+    <input type="hidden" name="payload" :value="JSON.stringify(form)">
+
+    <div class="border-b border-border bg-card">
+      <div class="container py-6 md:py-10 flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div class="flex items-center gap-4 md:gap-5 min-w-0">
+            <div class="min-w-0">
+              <div class="text-xs uppercase tracking-[0.25em] text-primary mb-1 md:mb-2">Menu type</div>
+              <h1 class="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-balance truncate"
+                  th:attr="data-new=${isNew}" x-text="$el.dataset.new === 'true' ? 'Nouveau menu type' : (form.title || 'Sans titre')"
+                  th:text="${isNew} ? 'Nouveau menu type' : 'Sans titre'"></h1>
+              <p class="text-muted-foreground mt-1 md:mt-3 max-w-2xl text-sm md:text-base">Crée un menu réutilisable que tu pourras assigner à plusieurs élèves.</p>
+            </div>
+          </div>
+          <div class="shrink-0">
+            <div class="flex flex-wrap gap-2">
+              <a href="/app/coach/nutrition?tab=templates" class="btn" data-variant="ghost">
+                <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4')}"></th:block> Retour
+              </a>
+              <th:block th:unless="${isNew}">
+                <button type="button" class="btn text-destructive" data-variant="ghost" onclick="document.getElementById('delete-template').showModal()">
+                  <th:block th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></th:block> Supprimer
+                </button>
+                <dialog class="alert-dialog" id="delete-template">
+                  <div>
+                    <header><h2>Supprimer ce menu type ?</h2><p>Les plans déjà assignés aux élèves resteront intacts.</p></header>
+                    <footer>
+                      <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                      <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/nutrition/templates/{id}(id=${templateId})}"
+                              hx-swap="none" onclick="this.closest('dialog').close()">Supprimer</button>
+                    </footer>
+                  </div>
+                </dialog>
+              </th:block>
+              <button type="button" class="btn" data-variant="outline" hx-post="/app/coach/nutrition/templates/save" hx-include="#template-editor"
+                      hx-vals='{"status": "draft"}' hx-swap="none">Brouillon</button>
+              <button type="button" class="btn group" data-variant="hero" hx-post="/app/coach/nutrition/templates/save" hx-include="#template-editor"
+                      hx-vals='{"status": "published"}' hx-swap="none">
+                <span class="group-[.htmx-request]:hidden">Publier</span>
+                <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-4 lg:px-8 py-6 space-y-6 max-w-[1600px] mx-auto">
+      <div class="card">
+        <section class="pt-5 pb-4">
+          <details open class="group">
+            <summary class="cursor-pointer list-none flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full shrink-0" :style="coverStyle(form.cover_color)"></span>
+              <span class="font-display text-base truncate flex-1">Paramètres</span>
+              <span class="text-xs text-muted-foreground hidden sm:block" x-text="`${form.kcal_target ?? '—'} kcal · ${form.meals_per_day} repas/j`"></span>
+            </summary>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-5">
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <label class="label" for="template-title">Titre</label>
+                  <input class="input" id="template-title" type="text" placeholder="Ex: Sèche 4 semaines" x-model="form.title">
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="template-description">Description (visible élève)</label>
+                  <textarea class="textarea" id="template-description" rows="3" :value="form.description ?? ''"
+                            @input="form.description = $event.target.value || null"></textarea>
+                </div>
+                <div class="space-y-2">
+                  <label class="label">Couleur de cover</label>
+                  <div class="flex flex-wrap gap-2">
+                    <button th:each="c : ${covers}" type="button" th:data-key="${c.key()}" th:aria-label="${c.label()}"
+                            th:style="|background: ${c.background()}|" @click="form.cover_color = $el.dataset.key"
+                            :class="form.cover_color === $el.dataset.key ? 'border-foreground' : 'border-transparent'"
+                            class="w-8 h-8 rounded-full border-2"></button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="space-y-2">
+                    <label class="label" for="template-kcal">Kcal/jour</label>
+                    <input class="input" id="template-kcal" type="number" :value="form.kcal_target ?? ''"
+                           @input="form.kcal_target = $event.target.value ? Number($event.target.value) : null">
+                  </div>
+                  <div class="space-y-2">
+                    <label class="label" for="template-meals">Repas/jour</label>
+                    <select class="select" id="template-meals" :value="String(form.meals_per_day)"
+                            @change="form.meals_per_day = Number($event.target.value)">
+                      <option th:each="n : ${#numbers.sequence(2, 6)}" th:value="${n}" th:text="${n}"></option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <div class="space-y-1" th:each="m : ${ {'protein_g', 'carbs_g', 'fat_g'} }" th:data-macro="${m}">
+                    <label class="label text-xs leading-4" th:for="|template-${m}|"
+                           th:text="${m == 'protein_g'} ? 'P (g)' : (${m == 'carbs_g'} ? 'G (g)' : 'L (g)')"></label>
+                    <input class="input" th:id="|template-${m}|" type="number" :value="macro($el.closest('[data-macro]').dataset.macro)"
+                           @input="setMacro($el.closest('[data-macro]').dataset.macro, $event.target.value)">
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="template-regime">Régime</label>
+                  <select class="select" id="template-regime" :value="form.dietary_preferences?.regime ?? 'omnivore'"
+                          @change="form.dietary_preferences = { ...form.dietary_preferences, regime: $event.target.value }">
+                    <option th:each="r : ${regimes}" th:value="${r.key}" th:text="${r.value}"></option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-sm text-muted-foreground mr-2">Semaine :</span>
+        <template x-for="(w, i) in form.weeks" :key="i">
+          <button type="button" class="btn" data-size="sm" :data-variant="activeWeek === i ? 'default' : 'outline'"
+                  @click="activeWeek = i" x-text="i + 1"></button>
+        </template>
+        <button type="button" class="btn" data-variant="ghost" data-size="sm" aria-label="Ajouter une semaine" @click="addWeek()"
+                th:utext="${icons.svg('plus', 'h-4 w-4')}"></button>
+        <div class="ml-auto flex gap-1">
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="duplicateWeek(activeWeek)">
+            <th:block th:utext="${icons.svg('copy', 'h-3 w-3')}"></th:block> Dupliquer
+          </button>
+          <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer la semaine"
+                  @click="removeWeek(activeWeek)" :disabled="form.weeks.length === 1" th:utext="${icons.svg('trash-2', 'h-3 w-3')}"></button>
+        </div>
+      </div>
+
+      <input class="input" type="text" placeholder="Commentaire de la semaine (visible élève)…" :value="week.week_comment ?? ''"
+             @input="week.week_comment = $event.target.value || null">
+
+      <div th:replace="~{fragments/nutrition/meal-grid :: grid(false)}"></div>
+    </div>
+  </form>
+</th:block>
+</body>
+</html>

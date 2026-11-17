@@ -1,0 +1,135 @@
+<!--/* NutritionOverview + MemberPlansList (onglet « Vue d'ensemble » du hub nutrition). */-->
+<div th:fragment="helpButton" class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+  <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Aide" @click="open = !open" :aria-expanded="open"
+          th:utext="${icons.svg('circle-help', 'h-5 w-5')}"></button>
+  <div data-popover data-align="end" :aria-hidden="!open" class="w-80 text-sm space-y-2">
+    <p>
+      <strong>Menu type</strong> — modèle réutilisable assigné à plusieurs élèves (ex&nbsp;: «&nbsp;Sèche 1600&nbsp;kcal&nbsp;»).
+      <a href="?tab=templates" class="text-primary hover:underline">Voir mes menus types →</a>
+    </p>
+    <p>
+      <strong>Plan élève</strong> — plan personnalisé attaché à une seule personne. C'est ce que l'élève voit dans son app.
+    </p>
+  </div>
+</div>
+
+<div th:fragment="overview" class="container py-6 animate-fade-in">
+  <div class="space-y-8">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div th:replace="~{fragments/ui/components :: statCard('Recettes', ${overview.recipes()}, null, null, 'default')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Aliments', ${overview.foods()}, null, null, 'default')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Menus types', ${overview.publishedTemplates()}, null, null, 'sage')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Plans actifs', ${overview.plans().size()}, null, null, 'primary')}"></div>
+    </div>
+
+    <div th:replace="~{::memberPlans}"></div>
+
+    <section class="space-y-3">
+      <h2 class="font-display text-lg">Activité récente</h2>
+      <div class="rounded-lg border bg-card p-5">
+        <p th:unless="${overview.hasActivity()}" class="text-sm text-muted-foreground" th:text="#{nutrition.activity.empty}"></p>
+        <div th:if="${overview.hasActivity()}" class="space-y-3 text-sm">
+          <div th:each="p, it : ${overview.plans()}" th:if="${it.index < 3}" class="flex items-start gap-2">
+            <th:block th:utext="${icons.svg('user-cog', 'h-4 w-4 mt-0.5 text-muted-foreground')}"></th:block>
+            <div class="min-w-0">
+              <div class="truncate"><th:block th:text="${p.title()}"></th:block> · <span class="text-muted-foreground" th:text="${p.memberName()}"></span></div>
+              <div class="text-xs text-muted-foreground" th:text="|Mis à jour le ${p.updatedOn()}|"></div>
+            </div>
+          </div>
+          <div th:each="t : ${overview.recentTemplates()}" class="flex items-start gap-2">
+            <th:block th:utext="${icons.svg('book-open', 'h-4 w-4 mt-0.5 text-muted-foreground')}"></th:block>
+            <div class="min-w-0">
+              <div class="truncate" th:text="${t.title()}"></div>
+              <div class="text-xs text-muted-foreground"
+                   th:text="${t.status() == 'published'} ? |${t.usageCount()} utilisation${t.usageCount() > 1 ? 's' : ''}| : 'Brouillon'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!--/* MemberPlansList : plans actifs ; recherche et statut filtrés dans le navigateur comme l'original. */-->
+<div th:fragment="memberPlans" class="space-y-4"
+     x-data="{ search: '', status: 'all',
+               matches(el) {
+                 if (this.status === 'active' && el.dataset.active !== 'true') return false;
+                 if (this.status === 'draft' && el.dataset.active === 'true') return false;
+                 return !this.search || el.dataset.search.includes(this.search.toLowerCase());
+               },
+               get visible() { return [...$root.querySelectorAll('[data-plan]')].filter((el) => this.matches(el)).length; } }">
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div>
+      <h2 class="font-display text-xl">Plans élèves</h2>
+      <p class="text-sm text-muted-foreground">Le plan en cours de chaque élève.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <section class="pt-5 pb-4">
+      <div class="text-xs uppercase tracking-wide text-muted-foreground mb-3">Trois façons de créer un plan</div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <a href="/app/coach/nutrition?tab=templates" class="flex flex-col justify-center text-left p-3 rounded-md border bg-background hover:bg-accent transition-colors">
+          <div class="flex items-center gap-2 mb-1">
+            <th:block th:utext="${icons.svg('layout-template', 'h-4 w-4 text-primary')}"></th:block>
+            <span class="text-sm font-medium">Assigner un menu type</span>
+          </div>
+          <p class="text-xs text-muted-foreground leading-snug">Choisis un menu existant et applique-le tel quel à un élève.</p>
+        </a>
+        <a href="/app/coach/nutrition?tab=templates" class="flex flex-col justify-center text-left p-3 rounded-md border bg-background hover:bg-accent transition-colors">
+          <div class="flex items-center gap-2 mb-1">
+            <th:block th:utext="${icons.svg('square-pen', 'h-4 w-4 text-primary')}"></th:block>
+            <span class="text-sm font-medium">Partir d'un menu et adapter</span>
+          </div>
+          <p class="text-xs text-muted-foreground leading-snug">Duplique un menu et personnalise les jours pour cet élève.</p>
+        </a>
+        <a href="/app/coach/nutrition/plans/generate" class="flex flex-col justify-center text-left p-3 rounded-md border bg-background hover:bg-accent transition-colors">
+          <div class="flex items-center gap-2 mb-1">
+            <th:block th:utext="${icons.svg('wand', 'h-4 w-4 text-primary')}"></th:block>
+            <span class="text-sm font-medium">Générer from scratch</span>
+          </div>
+          <p class="text-xs text-muted-foreground leading-snug">Wizard 5 étapes basé sur les macros cibles et le profil.</p>
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <div class="flex flex-col sm:flex-row gap-2">
+    <div class="relative flex-1">
+      <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+      <input class="input pl-9" type="text" placeholder="Rechercher un élève…" aria-label="Rechercher un élève" x-model="search">
+    </div>
+    <select class="select w-full sm:w-44" x-model="status" aria-label="Statut">
+      <option value="all" selected>Tous les statuts</option>
+      <option value="active">Actifs</option>
+      <option value="draft">Brouillons</option>
+    </select>
+  </div>
+
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('sparkles', 'Aucun plan actif',
+         ${overview.plans().isEmpty()} ? #{nutrition.plans.empty} : 'Aucun plan ne correspond à ces filtres.', null)}"></div>
+  </template>
+  <div class="card overflow-hidden" x-show="visible > 0">
+    <div class="divide-y">
+      <div th:each="p : ${overview.plans()}" data-plan th:data-active="${p.active()}" th:data-search="${p.search()}" x-show="matches($el)"
+           class="grid grid-cols-[40px_1fr_auto_auto] gap-3 items-center px-4 py-3">
+        <th:block th:replace="~{fragments/ui/components :: userAvatar(null, ${p.initial()}, 'sm')}"></th:block>
+        <div class="min-w-0">
+          <a th:if="${p.memberId().isPresent()}" th:href="@{/app/coach/members/{id}(id=${p.memberId().get()})}"
+             class="hover:text-primary hover:underline underline-offset-2 transition-colors text-sm font-medium truncate block"
+             th:text="${p.memberName()}"></a>
+          <span th:unless="${p.memberId().isPresent()}" class="text-sm font-medium truncate block" th:text="${p.memberName()}"></span>
+          <div class="text-xs text-muted-foreground truncate"
+               th:text="${p.title()} + ${p.kcalTarget().isPresent() ? ' · ' + p.kcalTarget().get() + ' kcal' : ''}"></div>
+        </div>
+        <span class="badge rounded-full" th:attr="data-variant=${p.active()} ? 'default' : 'secondary'" th:text="${p.active()} ? 'Actif' : 'Brouillon'"></span>
+        <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/coach/members/{id}/nutrition(id=${p.memberId().orElse(null)})}">
+          <th:block th:utext="${icons.svg('eye', 'h-4 w-4')}"></th:block>
+          Voir
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

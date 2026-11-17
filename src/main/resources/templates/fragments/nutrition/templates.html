@@ -1,0 +1,106 @@
+<!--/* MealPlanTemplateLibrary (onglet « Menus types ») : cartes filtrées dans le navigateur, assignation par dialog. */-->
+<div th:fragment="library" id="template-library" class="container py-6 animate-fade-in">
+  <div class="space-y-4"
+       x-data="{ search: '', status: 'all', regime: 'all',
+                 matches(el) {
+                   const d = el.dataset; const q = this.search.toLowerCase();
+                   if (q && !d.search.includes(q)) return false;
+                   if (this.status !== 'all' && d.status !== this.status) return false;
+                   return this.regime === 'all' || d.regime === this.regime;
+                 },
+                 get visible() { return [...$root.querySelectorAll('[data-template]')].filter((el) => this.matches(el)).length; } }">
+    <div class="flex justify-end">
+      <a class="btn" data-variant="hero" href="/app/coach/nutrition/templates/new">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouveau menu type
+      </a>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-2">
+      <div class="relative flex-1">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Rechercher un menu…" x-model="search">
+      </div>
+      <select class="select w-full sm:w-40" x-model="status" aria-label="Statut">
+        <option value="all" selected>Tous statuts</option>
+        <option value="published">Publiés</option>
+        <option value="draft">Brouillons</option>
+        <option value="archived">Archivés</option>
+      </select>
+      <select class="select w-full sm:w-40" x-model="regime" aria-label="Régime">
+        <option value="all" selected>Tous régimes</option>
+        <option th:each="r : ${regimes}" th:value="${r.key}" th:text="${r.value}"></option>
+      </select>
+    </div>
+
+    <template x-if="visible === 0">
+      <div th:replace="~{fragments/ui/components :: emptyState('book-open', 'Aucun menu type',
+           ${templates.isEmpty()} ? #{nutrition.templates.empty} : 'Aucun menu ne correspond à ces filtres.', null)}"></div>
+    </template>
+    <div x-show="visible > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div th:each="t : ${templates}" data-template x-show="matches($el)" th:data-search="${t.search()}" th:data-status="${t.status()}"
+           th:data-regime="${t.regime()}" class="card overflow-hidden flex flex-col">
+        <div class="h-20 p-3 flex items-end relative" th:style="|background: ${t.cover().background()}|">
+          <span class="absolute top-2 right-2 bg-background/90 px-2 py-0.5 rounded-full text-[11px] text-muted-foreground inline-flex items-center gap-1">
+            <th:block th:if="${t.draft()}">Brouillon</th:block>
+            <th:block th:unless="${t.draft()}"><th:block th:utext="${icons.svg('users', 'h-3 w-3')}"></th:block><th:block th:text="${t.usageCount()}"></th:block></th:block>
+          </span>
+          <div class="font-display text-base leading-tight line-clamp-2" th:style="|color: ${t.cover().text()}|" th:text="${t.title()}"></div>
+        </div>
+        <div class="p-3 flex-1 flex flex-col gap-2">
+          <div class="flex flex-wrap gap-1">
+            <span class="badge rounded-full" data-variant="secondary" th:text="|${t.durationWeeks()} sem.|"></span>
+            <span th:if="${t.kcalTarget().isPresent()}" class="badge rounded-full" data-variant="secondary" th:text="|${t.kcalTarget().get()} kcal|"></span>
+            <span class="badge rounded-full" data-variant="secondary" th:text="|${t.mealsPerDay()} repas/j|"></span>
+          </div>
+          <div class="text-xs text-muted-foreground line-clamp-2" th:text="${t.macrosLine()}"></div>
+          <div th:if="${t.description().isPresent()}" class="text-xs text-muted-foreground line-clamp-2" th:text="${t.description().get()}"></div>
+          <div class="mt-auto pt-2 flex gap-1.5">
+            <a class="btn flex-1 text-xs" data-variant="outline" data-size="sm" th:href="@{/app/coach/nutrition/templates/{id}(id=${t.id()})}">
+              <th:block th:utext="${icons.svg('square-pen', 'h-3 w-3')}"></th:block>
+              <th:block th:text="${t.draft()} ? 'Finir' : 'Modifier'"></th:block>
+            </a>
+            <button type="button" class="btn flex-1 text-xs" data-size="sm" th:attr="data-variant=${t.draft()} ? 'ghost' : 'hero',
+                    hx-get=@{/app/coach/nutrition/templates/{id}/assign(id=${t.id()})}" th:disabled="${t.draft()}"
+                    hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+              <th:block th:utext="${icons.svg('user-plus', 'h-3 w-3')}"></th:block>
+              Assigner
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--/* AssignMealPlanDialog : élève + semaine de départ ; la semaine est copiée dans un nouveau plan. */-->
+<dialog th:fragment="assignDialog" id="template-assign" class="dialog" aria-labelledby="template-assign-title" x-data x-init="$el.showModal()">
+  <form class="max-w-lg" th:attr="hx-post=@{/app/coach/nutrition/templates/{id}/assign(id=${template.id()})}" hx-target="#template-library"
+        hx-swap="outerHTML" hx-indicator="find button[type=submit]" x-data="{ memberId: '' }">
+    <header><h2 id="template-assign-title" th:text="|Assigner « ${template.title()} »|"></h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="assign-member">Élève</label>
+        <select class="select" id="assign-member" name="memberId" x-model="memberId" :class="memberId ? '' : 'text-muted-foreground'">
+          <option value="" disabled selected hidden>Choisir un élève…</option>
+          <option th:each="m : ${members}" th:value="${m.id()}" th:text="${m.name()}" class="text-foreground"></option>
+        </select>
+      </div>
+      <div th:if="${template.durationWeeks() > 1}" class="space-y-2">
+        <label class="label" for="assign-week">Démarrer à la semaine</label>
+        <select class="select" id="assign-week" name="weekIndex">
+          <option th:each="i : ${#numbers.sequence(0, template.weekCount() - 1)}" th:if="${template.weekCount() > 0}" th:value="${i}" th:text="|Semaine ${i + 1}|"></option>
+        </select>
+        <p class="text-xs text-muted-foreground">Le plan envoyé contiendra cette semaine. Les suivantes pourront être envoyées au fur et à mesure.</p>
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn" data-variant="ghost" onclick="this.closest('dialog').close()">Annuler</button>
+      <button type="submit" class="btn group" data-variant="hero" :disabled="!memberId">
+        <th:block th:utext="${icons.svg('user-plus', 'h-4 w-4')}"></th:block>
+        <span class="group-[.htmx-request]:hidden">Assigner</span>
+        <span class="hidden group-[.htmx-request]:inline">Envoi…</span>
+      </button>
+    </footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>

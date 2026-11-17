@@ -353,6 +353,118 @@ document.addEventListener("alpine:init", () => {
   });
 
   // Bibliothèque d'exercices : recherche, onglets (tous / mes / favoris) et filtres combinés, côté navigateur.
+  // WeeklyMealGrid : opérations partagées par l'éditeur de menu type et l'éditeur de plan élève.
+  const MEAL_COLORS = ["breakfast", "lunch", "dinner", "snack", "dessert"];
+  const COVERS = ["teal", "purple", "coral", "amber", "blue", "pink"];
+  const plannedMeal = (recipe) => {
+    const meal = { recipe_id: recipe.id, recipe_title: recipe.title, meal_type: "breakfast", servings: 1 };
+    ["calories", "protein_g", "carbs_g", "fat_g"].forEach((k) => { if (recipe[k] != null) meal[k] = Number(recipe[k]); });
+    return meal;
+  };
+  const mealGrid = (daysOf) => ({
+    gridMeals(day) { return daysOf.call(this)[day] ?? []; },
+    gridAdd(day, recipe) { const days = daysOf.call(this); days[day] = [...(days[day] ?? []), plannedMeal(recipe)]; },
+    gridRemove(day, idx) { const days = daysOf.call(this); days[day] = (days[day] ?? []).filter((_, i) => i !== idx); },
+    gridType(day, idx, type) {
+      const days = daysOf.call(this);
+      days[day] = (days[day] ?? []).map((m, i) => (i === idx ? { ...m, meal_type: type } : m));
+    },
+    mealStyle(type) {
+      const key = MEAL_COLORS.includes(type) ? type : "other";
+      return `background: var(--meal-${key}); color: var(--meal-${key}-fg)`;
+    },
+  });
+  const emptyWeek = (n) => ({
+    week_number: n,
+    week_comment: null,
+    days: { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] },
+  });
+
+  // MealPlanTemplateEditor : paramètres, semaines et grille de repas.
+  Alpine.data("templateEditor", (form, recipes) => ({
+    form,
+    recipes,
+    activeWeek: 0,
+    ...mealGrid(function days() { return this.week.days; }),
+    get week() { return this.form.weeks[this.activeWeek] ?? this.form.weeks[0]; },
+    get kcalTarget() { return this.form.kcal_target; },
+    coverStyle(key) { return `background: var(--cover-${COVERS.includes(key) ? key : "teal"}-bg)`; },
+    macro(key) { return this.form.macros_target?.[key] ?? ""; },
+    setMacro(key, value) { this.form.macros_target = { ...this.form.macros_target, [key]: value ? Number(value) : undefined }; },
+    addWeek() {
+      const next = this.form.weeks.length;
+      this.form.weeks = [...this.form.weeks, emptyWeek(next + 1)];
+      this.form.duration_weeks = next + 1;
+      this.activeWeek = next;
+    },
+    duplicateWeek(i) {
+      const src = this.form.weeks[i];
+      const days = Object.fromEntries(Object.entries(src.days).map(([k, v]) => [k, [...v]]));
+      this.form.weeks = [...this.form.weeks, { week_number: this.form.weeks.length + 1, week_comment: src.week_comment, days }];
+      this.form.duration_weeks = this.form.weeks.length;
+    },
+    removeWeek(i) {
+      if (this.form.weeks.length === 1) return;
+      const count = this.form.weeks.length;
+      this.form.weeks = this.form.weeks.filter((_, idx) => idx !== i).map((w, idx) => ({ ...w, week_number: idx + 1 }));
+      this.form.duration_weeks = this.form.weeks.length;
+      this.activeWeek = Math.max(0, Math.min(this.activeWeek, count - 2));
+    },
+  }));
+
+  // RecipeLibrary : onglet, recherche et filtres (l'allergène exclut les recettes qui le contiennent).
+  Alpine.data("recipeFilters", () => ({
+    tab: "all",
+    search: "",
+    category: "all",
+    dietary: "all",
+    allergen: "all",
+    equipment: "all",
+    mealType: "all",
+    filtersOpen: false,
+    visible: 0,
+    init() {
+      ["tab", "search", "category", "dietary", "allergen", "equipment", "mealType"]
+        .forEach((key) => this.$watch(key, () => this.refresh()));
+    },
+    get activeAdvanced() {
+      return ["dietary", "allergen", "equipment", "mealType"].filter((k) => this[k] !== "all").length;
+    },
+    get hasAny() { return Boolean(this.search) || this.category !== "all" || this.activeAdvanced > 0; },
+    reset() {
+      this.search = "";
+      ["category", "dietary", "allergen", "equipment", "mealType"].forEach((k) => { this[k] = "all"; });
+    },
+    matches(el) {
+      const d = el.dataset;
+      const list = (key) => JSON.parse(d[key]);
+      if (this.tab === "mine" && d.mine !== "true") return false;
+      if (this.category !== "all" && d.category !== this.category) return false;
+      if (this.dietary !== "all" && !list("dietary").includes(this.dietary)) return false;
+      if (this.allergen !== "all" && list("allergens").includes(this.allergen)) return false;
+      if (this.equipment !== "all" && !list("equipment").includes(this.equipment)) return false;
+      if (this.mealType !== "all" && !list("mealTypes").includes(this.mealType)) return false;
+      const q = this.search.toLowerCase().trim();
+      return !q || d.search.includes(q);
+    },
+    refresh() {
+      this.$nextTick(() => {
+        this.visible = [...document.querySelectorAll("[data-recipe]")].filter((el) => this.matches(el)).length;
+      });
+    },
+  }));
+
+  // RecipeFormDialog : état complet du formulaire, envoyé en JSON au serveur.
+  Alpine.data("recipeForm", () => ({
+    form: {},
+    init() { this.form = JSON.parse(this.$el.dataset.state); },
+    has(key, value) { return this.form[key].includes(value); },
+    toggle(key, value) {
+      this.form[key] = this.has(key, value) ? this.form[key].filter((v) => v !== value) : [...this.form[key], value];
+    },
+    addIngredient() { this.form.ingredients.push({ name: "", quantity: "", unit: "g" }); },
+  }));
+
   Alpine.data("exerciseFilters", () => ({
     search: "",
     tab: "all",

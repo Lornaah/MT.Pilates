@@ -85,6 +85,26 @@
   --meal-snack: #FBEAF0;
   --meal-dessert: #EEEDFE;
   --meal-other: #F1EFE8;
+  --meal-breakfast-fg: #412402;
+  --meal-lunch-fg: #04342C;
+  --meal-dinner-fg: #042C53;
+  --meal-snack-fg: #4B1528;
+  --meal-dessert-fg: #26215C;
+  --meal-other-fg: #2C2C2A;
+
+  /* Couvertures des menus types (TEMPLATE_COVERS) : fond et texte */
+  --cover-teal-bg: #E1F5EE;
+  --cover-teal-text: #04342C;
+  --cover-purple-bg: #EEEDFE;
+  --cover-purple-text: #26215C;
+  --cover-coral-bg: #FAECE7;
+  --cover-coral-text: #4A1B0C;
+  --cover-amber-bg: #FAEEDA;
+  --cover-amber-text: #412402;
+  --cover-blue-bg: #E6F1FB;
+  --cover-blue-text: #042C53;
+  --cover-pink-bg: #FBEAF0;
+  --cover-pink-text: #4B1528;
 
   /* Séries des graphiques de mensurations (TrackingChartCard) */
   --chart-weight: var(--primary);

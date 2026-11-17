@@ -1,0 +1,209 @@
+<!--/*
+  FoodLibrary (onglet « Aliments »). Recherche et filtres sont un état d'affichage (Alpine) ; les actions
+  passent par le serveur et re-rendent `table`. Les dialogs sont chargés dans #nutrition-dialog-slot.
+*/-->
+<div th:fragment="library"
+     x-data="{ search: '', source: 'all', aisle: 'all',
+               matches(el) {
+                 const d = el.dataset; const q = this.search.toLowerCase().trim();
+                 if (this.source !== 'all' && d.source !== this.source) return false;
+                 if (this.aisle !== 'all' && d.aisle !== this.aisle) return false;
+                 return !q || d.name.includes(q) || d.brand.includes(q) || d.barcode.includes(q);
+               } }">
+  <div class="container flex justify-end pt-2">
+    <div class="flex gap-2 flex-wrap">
+      <button type="button" class="btn" data-variant="outline" hx-get="/app/coach/nutrition/foods/search" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('globe', 'h-4 w-4')}"></th:block> Rechercher OFF
+      </button>
+      <button type="button" class="btn" data-variant="outline" hx-get="/app/coach/nutrition/foods/barcode" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('scan-barcode', 'h-4 w-4')}"></th:block> Code-barres
+      </button>
+      <button type="button" class="btn" data-variant="hero" hx-get="/app/coach/nutrition/foods/new" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouvel aliment
+      </button>
+    </div>
+  </div>
+
+  <div class="container py-8 space-y-6">
+    <div class="flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Nom, marque, code-barres…" x-model="search">
+      </div>
+      <select class="select sm:w-48" aria-label="Filtrer par source" x-model="source">
+        <option value="all" selected>Toutes sources</option>
+        <option th:each="s : ${foodSources}" th:value="${s.key}" th:text="${s.value}"></option>
+      </select>
+      <select class="select sm:w-48" aria-label="Filtrer par rayon" x-model="aisle">
+        <option value="all" selected>Tous rayons</option>
+        <option th:each="a : ${foodAisles}" th:value="${a.key}" th:text="${a.value}"></option>
+      </select>
+    </div>
+    <div th:replace="~{::table}"></div>
+  </div>
+</div>
+
+<div th:fragment="table" id="food-table"
+     x-data="{ get visible() { return [...$root.querySelectorAll('[data-food]')].filter((el) => matches(el)).length; } }">
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('apple', null, 'Aucun aliment. Ajoutez-en un ou importez par code-barres.', null)}"></div>
+  </template>
+  <div class="rounded-lg border border-border overflow-x-auto" x-show="visible > 0">
+    <div class="table-container">
+      <table class="table text-sm">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th class="hidden sm:table-cell">Marque</th>
+            <th class="hidden md:table-cell">Rayon</th>
+            <th class="text-right">kcal/100g</th>
+            <th class="text-right hidden lg:table-cell">P/G/L</th>
+            <th class="hidden lg:table-cell">Source</th>
+            <th class="w-24"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="f : ${foods}" data-food x-show="matches($el)"
+              th:data-name="${#strings.toLowerCase(f.name())}" th:data-brand="${#strings.toLowerCase(f.brand().orElse(''))}"
+              th:data-barcode="${f.barcode()}" th:data-source="${f.source()}" th:data-aisle="${f.aisle()}">
+            <td class="font-medium">
+              <div th:text="${f.name()}"></div>
+              <div class="text-xs text-muted-foreground sm:hidden" th:text="${f.brand().orElse('')}"></div>
+            </td>
+            <td class="text-muted-foreground hidden sm:table-cell" th:text="${f.brand().orElse('—')}"></td>
+            <td class="hidden md:table-cell"><span class="badge text-xs" data-variant="secondary" th:text="${f.aisleLabel()}"></span></td>
+            <td class="text-right" th:text="${f.calories()}"></td>
+            <td class="text-right text-xs text-muted-foreground hidden lg:table-cell" th:text="${f.macros()}"></td>
+            <td class="hidden lg:table-cell"><span class="badge text-xs" data-variant="outline" th:text="${f.sourceLabel()}"></span></td>
+            <td>
+              <div class="flex gap-1 justify-end">
+                <button type="button" class="btn min-h-9 min-w-9" data-variant="ghost" data-size="sm" th:aria-label="|Modifier ${f.name()}|"
+                        th:attr="hx-get=@{/app/coach/nutrition/foods/{id}/edit(id=${f.id()})}" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML"
+                        th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+                <th:block th:with="dialogId=|delete-food-${f.id()}|">
+                  <button type="button" class="btn text-destructive min-h-9 min-w-9" data-variant="ghost" data-size="sm" th:aria-label="|Supprimer ${f.name()}|"
+                          th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                          th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+                  <dialog class="alert-dialog" th:id="${dialogId}">
+                    <div>
+                      <header><h2>Supprimer cet aliment ?</h2><p th:text="|« ${f.name()} » sera définitivement supprimé.|"></p></header>
+                      <footer>
+                        <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                        <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/nutrition/foods/{id}(id=${f.id()})}"
+                                hx-target="#food-table" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                      </footer>
+                    </div>
+                  </dialog>
+                </th:block>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!--/* Dialog « Nouvel aliment » / « Modifier l'aliment » (FormDialog 2xl). */-->
+<dialog th:fragment="foodDialog" id="food-form" class="dialog" aria-labelledby="food-form-title" x-data x-init="$el.showModal()" th:with="f=${food}">
+  <form class="max-w-2xl max-h-[90vh] overflow-y-auto" hx-target="#food-table" hx-swap="outerHTML" hx-indicator="find button[type=submit]"
+        th:attr="hx-post=${f.id().isPresent() ? '/app/coach/nutrition/foods/' + f.id().get() : '/app/coach/nutrition/foods'}">
+    <header><h2 id="food-form-title" class="font-display text-2xl leading-8" th:text="${f.title()}"></h2></header>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div th:replace="~{::foodField('food-name', 'Nom', true, 'name', ${f.name()}, 'text')}"></div>
+        <div th:replace="~{::foodField('food-brand', 'Marque', false, 'brand', ${f.brand()}, 'text')}"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div th:replace="~{::foodField('food-barcode', 'Code-barres', false, 'barcode', ${f.barcode()}, 'text')}"></div>
+        <div th:replace="~{::foodField('food-serving', 'Portion (g)', false, 'servingSizeG', ${f.servingSizeG()}, 'number')}"></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div th:replace="~{::foodField('food-kcal', 'kcal /100g', false, 'calories', ${f.calories()}, 'number')}"></div>
+        <div th:replace="~{::foodField('food-protein', 'Protéines', false, 'protein', ${f.protein()}, 'number')}"></div>
+        <div th:replace="~{::foodField('food-carbs', 'Glucides', false, 'carbs', ${f.carbs()}, 'number')}"></div>
+        <div th:replace="~{::foodField('food-fat', 'Lipides', false, 'fat', ${f.fat()}, 'number')}"></div>
+        <div th:replace="~{::foodField('food-fiber', 'Fibres', false, 'fiber', ${f.fiber()}, 'number')}"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="space-y-2">
+          <label class="text-sm font-medium" for="food-source">Source</label>
+          <select class="select" id="food-source" name="source">
+            <option th:each="s : ${foodSources}" th:value="${s.key}" th:text="${s.value}" th:selected="${s.key == f.source()}"></option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium" for="food-aisle">Rayon</label>
+          <select class="select" id="food-aisle" name="aisle">
+            <option th:each="a : ${foodAisles}" th:value="${a.key}" th:text="${a.value}" th:selected="${a.key == f.aisle()}"></option>
+          </select>
+        </div>
+        <div class="flex items-end gap-2">
+          <input id="is_public" type="checkbox" class="h-4 w-4" name="isPublic" value="true" th:checked="${f.isPublic()}">
+          <label for="is_public" class="text-sm">Visible par tous les coachs</label>
+        </div>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<div th:fragment="foodField(id, label, required, name, value, type)" class="space-y-2">
+  <label class="label" th:for="${id}"><th:block th:text="${label}"></th:block><span th:if="${required}" class="text-destructive ml-0.5">*</span></label>
+  <input class="input" th:id="${id}" th:type="${type}" th:name="${name}" th:value="${value}">
+</div>
+
+<!--/* Dialog « Importer depuis OpenFoodFacts » (code-barres). */-->
+<dialog th:fragment="barcodeDialog" id="food-barcode" class="dialog" aria-labelledby="food-barcode-title" x-data x-init="$el.showModal()">
+  <form class="max-w-lg max-h-[90vh] overflow-y-auto" hx-post="/app/coach/nutrition/foods/barcode" hx-target="#nutrition-dialog-slot"
+        hx-swap="innerHTML" hx-indicator="find button[type=submit]">
+    <header><h2 id="food-barcode-title" class="font-display text-2xl leading-8">Importer depuis OpenFoodFacts</h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="food-barcode-input">Code-barres EAN</label>
+        <input class="input" id="food-barcode-input" type="text" name="barcode" placeholder="ex : 3017620422003">
+      </div>
+      <p class="text-xs text-muted-foreground">Les valeurs nutritionnelles seront pré-remplies depuis OpenFoodFacts.</p>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter('Rechercher')}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<!--/* Dialog « Rechercher sur OpenFoodFacts » : les résultats sont re-rendus dans #off-results. */-->
+<dialog th:fragment="searchDialog" id="food-search" class="dialog" aria-labelledby="food-search-title" x-data x-init="$el.showModal()">
+  <form class="max-w-2xl max-h-[90vh] overflow-y-auto" hx-post="/app/coach/nutrition/foods/search" hx-target="#off-results"
+        hx-swap="outerHTML" hx-indicator="find button[type=submit]">
+    <header><h2 id="food-search-title" class="font-display text-2xl leading-8">Rechercher sur OpenFoodFacts</h2></header>
+    <div class="space-y-4">
+      <div class="flex gap-2">
+        <input class="input" type="text" name="q" placeholder="ex : nutella, lait, yaourt nature…">
+      </div>
+      <div th:replace="~{::searchResults}"></div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter('Rechercher')}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<!--/* `contents` : vide, le conteneur ne doit pas recevoir la marge de space-y (l'original ne rendait rien). */-->
+<div th:fragment="searchResults" id="off-results" class="contents">
+  <div class="mt-4 hidden [form:has(.htmx-request)_&]:block" th:insert="~{fragments/ui/components :: loadingSpinner('section')}"></div>
+  <div th:if="${results != null and !results.isEmpty()}"
+       class="mt-4 [form:has(.htmx-request)_&]:hidden max-h-96 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+    <button th:each="p : ${results}" type="button" hx-post="/app/coach/nutrition/foods/prefill" hx-target="#nutrition-dialog-slot"
+            hx-swap="innerHTML" th:attr="hx-vals=${json.write(p.prefill())}"
+            class="w-full text-left flex items-center gap-3 p-3 hover:bg-muted/60 transition-colors">
+      <img th:if="${p.imageUrl().isPresent()}" th:src="${p.imageUrl().get()}" alt="" class="h-12 w-12 rounded-sm object-cover">
+      <div th:unless="${p.imageUrl().isPresent()}" class="h-12 w-12 rounded-sm bg-muted flex items-center justify-center"
+           th:utext="${icons.svg('apple', 'h-5 w-5 text-muted-foreground')}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium truncate" th:text="${p.name()}"></div>
+        <div class="text-xs text-muted-foreground truncate"
+             th:text="|${p.brand().orElse('—')} · ${p.calories().isPresent() ? p.calories().get().stripTrailingZeros().toPlainString() : '?'} kcal/100g|"></div>
+      </div>
+      <th:block th:utext="${icons.svg('download', 'h-4 w-4 text-muted-foreground')}"></th:block>
+    </button>
+  </div>
+</div>

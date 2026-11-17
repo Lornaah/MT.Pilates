@@ -1,0 +1,295 @@
+<!--/*
+  RecipeLibrary (onglet « Recettes »). Onglets, recherche et filtres sont un état d'affichage (Alpine) ;
+  les actions passent par le serveur et re-rendent `grid`.
+*/-->
+<div th:fragment="library" x-data="recipeFilters">
+  <div class="container max-w-7xl flex justify-end pt-2">
+    <button type="button" class="btn" data-variant="hero" hx-get="/app/coach/nutrition/recipes/new" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+      <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouvelle recette
+    </button>
+  </div>
+
+  <div class="container max-w-7xl py-8 space-y-6">
+    <div th:replace="~{::stats(false)}"></div>
+
+    <div class="space-y-3">
+      <div class="tabs">
+        <nav role="tablist">
+          <button type="button" role="tab" :aria-selected="tab === 'all'" @click="tab = 'all'">
+            Toutes <span th:replace="~{::tabCount('recipe-count-all', ${library.recipes().size()}, false)}"></span>
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'mine'" @click="tab = 'mine'">
+            Mes recettes <span th:replace="~{::tabCount('recipe-count-mine', ${library.mine()}, false)}"></span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-2">
+        <div class="relative flex-1 min-w-0">
+          <th:block th:utext="${icons.svg('search', 'absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none')}"></th:block>
+          <input class="input pl-10 h-10 rounded-full bg-card border-border/80" type="text"
+                 placeholder="Rechercher une recette, un ingrédient…" x-model="search">
+          <button type="button" x-show="search" x-cloak @click="search = ''" aria-label="Effacer la recherche"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+        </div>
+        <select class="select sm:w-44 h-10 rounded-full bg-card border-border/80" x-model="category" aria-label="Catégorie">
+          <option value="all" selected>Toutes catégories</option>
+          <option th:each="c : ${recipeCategories}" th:value="${c.key}" th:text="${c.value}"></option>
+        </select>
+        <!--/* Radix Popover focalise le premier champ ; 50 ms : le popover est invisible pendant la première frame de sa transition. */-->
+        <div class="relative" @click.outside="filtersOpen = false" @keydown.escape="filtersOpen = false">
+          <button type="button" class="btn h-10 rounded-full px-4 gap-2 bg-card border-border/80 relative" data-variant="outline"
+                  @click="filtersOpen = !filtersOpen; filtersOpen && setTimeout(() => $el.parentElement.querySelector('[data-popover] select').focus(), 50)">
+            <th:block th:utext="${icons.svg('sliders-horizontal', 'h-4 w-4')}"></th:block>
+            <span class="hidden sm:inline">Filtres</span>
+            <span x-show="activeAdvanced > 0" x-cloak x-text="activeAdvanced"
+                  class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center"></span>
+          </button>
+          <div data-popover data-align="end" :aria-hidden="!filtersOpen" class="w-80 space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="font-display text-base">Filtres avancés</h4>
+              <button type="button" class="btn h-7 text-xs" data-variant="ghost" data-size="sm" x-show="hasAny" @click="reset()">Réinitialiser</button>
+            </div>
+            <div class="space-y-3">
+              <div th:replace="~{::advancedFilter('dietary', 'Régime', 'Tous régimes', ${dietaryTags}, false)}"></div>
+              <div th:replace="~{::advancedFilter('allergen', 'Sans allergène', 'Aucun filtre', ${allergens}, true)}"></div>
+              <div th:replace="~{::advancedFilter('equipment', 'Équipement requis', 'Peu importe', ${equipment}, false)}"></div>
+              <div th:replace="~{::advancedFilter('mealType', 'Type de repas', 'Tous repas', ${mealTypes}, false)}"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p x-show="hasAny" x-cloak class="text-xs text-muted-foreground pl-1"
+         x-text="visible + ' recette' + (visible === 1 ? '' : 's') + ' trouvée' + (visible === 1 ? '' : 's')"></p>
+    </div>
+
+    <div th:replace="~{::grid}"></div>
+  </div>
+</div>
+
+<div th:fragment="statTile(icon, label, value, tone)" class="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3">
+  <div th:class="|h-10 w-10 rounded-xl flex items-center justify-center ${tone}|" th:utext="${icons.svg(icon, 'h-5 w-5')}"></div>
+  <div class="min-w-0">
+    <div class="text-2xl font-display leading-none" th:text="${value}"></div>
+    <div class="text-xs text-muted-foreground mt-1" th:text="${label}"></div>
+  </div>
+</div>
+
+<div th:fragment="advancedFilter(key, label, allLabel, options, without)" class="space-y-1.5">
+  <label class="label text-xs leading-4 uppercase tracking-wider text-muted-foreground" th:for="|recipe-filter-${key}|" th:text="${label}"></label>
+  <select class="select" th:id="|recipe-filter-${key}|" th:attr="x-model=${key}">
+    <option value="all" selected th:text="${allLabel}"></option>
+    <option th:each="o : ${options}" th:value="${o.key}" th:text="${without} ? |Sans ${#strings.toLowerCase(o.value)}| : ${o.value}"></option>
+  </select>
+</div>
+
+<div th:fragment="grid" id="recipe-grid" x-init="refresh()">
+  <template x-if="visible === 0">
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <div class="relative h-32 w-32 mb-6">
+        <div class="absolute inset-x-3 bottom-2 h-3 rounded-full bg-foreground/5"></div>
+        <div class="absolute inset-x-1 bottom-6 h-20 rounded-full bg-gradient-to-br from-sage/40 to-sage/20 border border-sage/30"></div>
+        <div class="absolute inset-x-4 bottom-12 h-16 rounded-full bg-gradient-to-br from-primary-glow/40 to-primary/10 border border-primary/20"></div>
+        <!--/* `bottom-18` n'existait pas dans l'échelle Tailwind v3 de l'original : l'assiette du haut restait collée en haut. */-->
+        <div class="absolute inset-x-7 h-12 rounded-full bg-card border border-border flex items-center justify-center"
+             th:utext="${icons.svg('chef-hat', 'h-6 w-6 text-primary')}"></div>
+      </div>
+      <h3 class="font-display text-2xl mb-2" x-text="hasAny ? 'Rien ne correspond à ces filtres' : 'Votre carnet est vide'"></h3>
+      <p class="text-muted-foreground max-w-md mb-5 text-sm leading-relaxed"
+         x-text="hasAny ? $el.dataset.filtered : $el.dataset.empty" th:data-filtered="#{recipes.empty.filtered}" th:data-empty="#{recipes.empty}"></p>
+      <button x-show="hasAny" type="button" class="btn" data-variant="outline" @click="reset()">Réinitialiser les filtres</button>
+      <button x-show="!hasAny" type="button" class="btn" data-variant="hero" hx-get="/app/coach/nutrition/recipes/new"
+              hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Créer ma première recette
+      </button>
+    </div>
+  </template>
+  <div x-show="visible > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <th:block th:each="r : ${library.recipes()}"><article th:replace="~{::recipeCard(${r})}"></article></th:block>
+  </div>
+</div>
+
+<!--/* Après création, modification ou suppression : grille, tuiles et compteurs des onglets (hors bande). */-->
+<th:block th:fragment="refresh">
+  <div th:replace="~{::grid}"></div>
+  <div th:replace="~{::stats(true)}"></div>
+  <span th:replace="~{::tabCount('recipe-count-all', ${library.recipes().size()}, true)}"></span>
+  <span th:replace="~{::tabCount('recipe-count-mine', ${library.mine()}, true)}"></span>
+</th:block>
+
+<div th:fragment="stats(oob)" id="recipe-stats" class="grid grid-cols-1 sm:grid-cols-3 gap-3" th:attr="hx-swap-oob=${oob} ? 'true' : null">
+  <div th:replace="~{::statTile('book-open', 'Recettes en bibliothèque', ${library.recipes().size()}, 'bg-muted/40 text-foreground')}"></div>
+  <div th:replace="~{::statTile('heart', 'Vos créations', ${library.mine()}, 'bg-primary/10 text-primary')}"></div>
+  <div th:replace="~{::statTile('sparkles', 'Avec photo', ${library.withPhoto()}, 'bg-sage/15 text-sage-foreground')}"></div>
+</div>
+
+<span th:fragment="tabCount(id, value, oob)" th:id="${id}" class="ml-1.5 text-xs opacity-70" th:text="${value}"
+      th:attr="hx-swap-oob=${oob} ? 'true' : null"></span>
+
+<article th:fragment="recipeCard(r)" data-recipe x-show="matches($el)"
+         th:data-mine="${r.mine()}" th:data-search="${r.search()}" th:data-category="${r.category()}"
+         th:data-dietary="${json.write(r.dietaryTags())}" th:data-allergens="${json.write(r.allergens())}"
+         th:data-equipment="${json.write(r.equipment())}" th:data-meal-types="${json.write(r.mealTypes())}"
+         class="recipe-card group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-300 hover:-translate-y-0.5 h-full">
+  <div class="relative overflow-hidden aspect-[5/4]">
+    <img th:if="${r.imageUrl().isPresent()}" th:src="${r.imageUrl().get()}" th:alt="${r.title()}" loading="lazy"
+         class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105">
+    <div th:unless="${r.imageUrl().isPresent()}" class="recipe-card-placeholder h-full w-full flex items-center justify-center">
+      <span class="font-display text-7xl text-foreground/15 select-none" th:text="${r.monogram()}"></span>
+    </div>
+    <div class="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/15 to-transparent"></div>
+    <span class="badge absolute top-3 left-3 rounded-full border-card bg-card/90 backdrop-blur-sm font-medium tracking-wide shadow-xs"
+          data-variant="secondary" th:text="${r.categoryLabel()}"></span>
+    <div th:if="${r.calories().isPresent()}"
+         class="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-bordeaux/85 text-bordeaux-foreground px-2.5 py-1 text-xs font-medium backdrop-blur-sm">
+      <th:block th:utext="${icons.svg('flame', 'h-3 w-3')}"></th:block>
+      <th:block th:text="|${r.calories().get()} kcal|"></th:block>
+    </div>
+    <h3 class="recipe-card-title absolute bottom-3 left-3 right-3 font-display text-card text-balance leading-tight text-xl md:text-2xl md:leading-8"
+        th:text="${r.title()}"></h3>
+  </div>
+
+  <div class="flex flex-1 flex-col gap-3 p-4">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <span th:if="${r.totalMinutes() > 0}" class="inline-flex items-center gap-1">
+        <th:block th:utext="${icons.svg('clock', 'h-3 w-3')}"></th:block> <th:block th:text="|${r.totalMinutes()} min|"></th:block>
+      </span>
+      <span th:if="${r.servings() > 0}" class="inline-flex items-center gap-1">
+        <th:block th:utext="${icons.svg('users', 'h-3 w-3')}"></th:block><th:block th:text="|${r.servings()} pers.|"></th:block>
+      </span>
+      <span class="inline-flex items-center gap-1">
+        <th:block th:utext="${icons.svg('leaf', 'h-3 w-3')}"></th:block><th:block th:text="|${r.ingredientCount()} ingr.|"></th:block>
+      </span>
+    </div>
+
+    <p th:if="${r.description().isPresent()}" class="text-sm text-muted-foreground line-clamp-2 leading-relaxed" th:text="${r.description().get()}"></p>
+
+    <div th:unless="${r.dietaryLabels().isEmpty()}" class="flex flex-wrap gap-1.5">
+      <span th:each="label : ${r.dietaryLabels()}" th:text="${label}"
+            class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium border-sage/40 bg-sage/10 text-sage-foreground"></span>
+      <span th:if="${r.extraDietary() > 0}" class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] text-muted-foreground"
+            th:text="|+${r.extraDietary()}|"></span>
+    </div>
+
+    <div th:if="${r.hasMacros()}" class="mt-auto flex items-center gap-3 pt-2 text-[11px] tabular-nums text-muted-foreground border-t border-border/60">
+      <span th:if="${r.protein().isPresent()}"><span class="text-foreground font-semibold" th:text="|${r.protein().get()}g|"></span> P</span>
+      <span th:if="${r.carbs().isPresent()}"><span class="text-foreground font-semibold" th:text="|${r.carbs().get()}g|"></span> G</span>
+      <span th:if="${r.fat().isPresent()}"><span class="text-foreground font-semibold" th:text="|${r.fat().get()}g|"></span> L</span>
+    </div>
+
+    <div class="flex items-center justify-between pt-2 border-t border-border/60">
+      <button type="button" class="btn" data-variant="ghost" data-size="sm"
+              th:attr="hx-get=@{/app/coach/nutrition/recipes/{id}/edit(id=${r.id()})}" hx-target="#nutrition-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('pencil', 'h-3.5 w-3.5')}"></th:block> Éditer
+      </button>
+      <th:block th:with="dialogId=|delete-recipe-${r.id()}|">
+        <button type="button" class="btn text-destructive hover:text-destructive hover:bg-destructive/10" data-variant="ghost" data-size="sm"
+                aria-label="Supprimer" th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                th:utext="${icons.svg('trash-2', 'h-3.5 w-3.5')}"></button>
+        <dialog class="alert-dialog" th:id="${dialogId}">
+          <div>
+            <header><h2>Supprimer cette recette ?</h2><p th:text="|« ${r.title()} » sera définitivement supprimée.|"></p></header>
+            <footer>
+              <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+              <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/nutrition/recipes/{id}(id=${r.id()})}"
+                      hx-target="#recipe-grid" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+            </footer>
+          </div>
+        </dialog>
+      </th:block>
+    </div>
+  </div>
+</article>
+
+<!--/* RecipeFormDialog : l'état du formulaire vit dans Alpine et part en JSON dans `payload`. */-->
+<dialog th:fragment="recipeDialog" id="recipe-form" class="dialog" aria-labelledby="recipe-form-title" x-data x-init="$el.showModal()">
+  <form class="max-w-2xl max-h-[90vh] overflow-y-auto" hx-target="#recipe-grid" hx-swap="outerHTML" hx-indicator="find button[type=submit]"
+        th:attr="hx-post=${recipeId != null ? '/app/coach/nutrition/recipes/' + recipeId : '/app/coach/nutrition/recipes'}"
+        th:data-state="${json.write(recipeState)}" x-data="recipeForm">
+    <input type="hidden" name="payload" :value="JSON.stringify(form)">
+    <header><h2 id="recipe-form-title" class="font-display text-2xl leading-8" th:text="${recipeId != null ? 'Modifier la recette' : 'Nouvelle recette'}"></h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="recipe-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="recipe-title" type="text" x-model="form.title">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="recipe-description">Description</label>
+        <textarea class="textarea" id="recipe-description" rows="2" x-model="form.description"></textarea>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="recipe-image">URL image (optionnelle)</label>
+        <input class="input" id="recipe-image" type="text" placeholder="https://…" x-model="form.image_url">
+      </div>
+
+      <div class="grid grid-cols-4 gap-3">
+        <div class="space-y-2">
+          <label class="label" for="recipe-category">Catégorie</label>
+          <select class="select" id="recipe-category" x-model="form.category">
+            <option th:each="c : ${recipeCategories}" th:value="${c.key}" th:text="${c.value}"></option>
+          </select>
+        </div>
+        <div th:replace="~{::numberField('recipe-prep', 'Préparation (min)', 'prep_time_minutes')}"></div>
+        <div th:replace="~{::numberField('recipe-cook', 'Cuisson (min)', 'cook_time_minutes')}"></div>
+        <div th:replace="~{::numberField('recipe-servings', 'Portions', 'servings')}"></div>
+      </div>
+      <div class="grid grid-cols-4 gap-3">
+        <div th:replace="~{::numberField('recipe-kcal', 'kcal', 'calories')}"></div>
+        <div th:replace="~{::numberField('recipe-protein', 'Protéines (g)', 'protein_g')}"></div>
+        <div th:replace="~{::numberField('recipe-carbs', 'Glucides (g)', 'carbs_g')}"></div>
+        <div th:replace="~{::numberField('recipe-fat', 'Lipides (g)', 'fat_g')}"></div>
+      </div>
+
+      <div th:replace="~{::pillMulti('Types de repas', 'meal_types', ${mealTypes})}"></div>
+      <div th:replace="~{::pillMulti('Régimes compatibles', 'dietary_tags', ${dietaryTags})}"></div>
+      <div th:replace="~{::pillMulti('Allergènes contenus', 'allergens', ${allergens})}"></div>
+      <div th:replace="~{::pillMulti('Équipement nécessaire', 'equipment_needed', ${equipment})}"></div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="label">Ingrédients</label>
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="addIngredient()">
+            <th:block th:utext="${icons.svg('plus', 'h-3 w-3')}"></th:block> Ajouter
+          </button>
+        </div>
+        <div class="space-y-2">
+          <template x-for="(ing, idx) in form.ingredients" :key="idx">
+            <div class="grid grid-cols-12 gap-2">
+              <input class="input col-span-6" type="text" placeholder="Nom" x-model="ing.name">
+              <input class="input col-span-2" type="text" placeholder="Quantité" x-model="ing.quantity">
+              <select class="select col-span-3" x-model="ing.unit" aria-label="Unité">
+                <option th:each="u : ${units}" th:value="${u}" th:text="${u}"></option>
+              </select>
+              <button type="button" class="btn col-span-1 text-destructive" data-variant="ghost" data-size="sm" aria-label="Retirer"
+                      @click="form.ingredients.splice(idx, 1)" th:utext="${icons.svg('trash-2', 'h-3 w-3')}"></button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="label" for="recipe-instructions">Préparation</label>
+        <textarea class="textarea" id="recipe-instructions" rows="5" placeholder="Étape 1… Étape 2…" x-model="form.instructions"></textarea>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<div th:fragment="numberField(id, label, key)" class="space-y-2">
+  <label class="label" th:for="${id}" th:text="${label}"></label>
+  <input class="input" th:id="${id}" type="number" th:attr="x-model=|form.${key}|">
+</div>
+
+<div th:fragment="pillMulti(label, key, options)" class="space-y-2" th:data-key="${key}">
+  <label class="label" th:text="${label}"></label>
+  <div class="flex flex-wrap gap-2">
+    <button th:each="o : ${options}" type="button" th:data-value="${o.key}" th:text="${o.value}"
+            @click="toggle($el.closest('[data-key]').dataset.key, $el.dataset.value)"
+            :class="has($el.closest('[data-key]').dataset.key, $el.dataset.value) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'"
+            class="px-3 py-1 rounded-full text-xs border transition-colors"></button>
+  </div>
+</div>
