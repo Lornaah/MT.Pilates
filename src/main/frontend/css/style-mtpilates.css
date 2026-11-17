@@ -45,7 +45,8 @@
 
   /* --------------------------------------------------------------- Card */
   .card { @apply rounded-lg border bg-card text-card-foreground shadow-xs; }
-  .card > header { @apply flex flex-col space-y-1.5 p-6; }
+  /* Basecoat aligne les enfants à gauche (flex-start) ; CardHeader de shadcn les étire sur toute la largeur. */
+  .card > header { @apply flex flex-col items-stretch space-y-1.5 p-6; }
   .card > header > :is(h2, h3, .card-title) { @apply text-2xl font-semibold leading-none tracking-tight; }
   .card > header > p { @apply text-sm text-muted-foreground; }
   .card > section { @apply p-6 pt-0; }

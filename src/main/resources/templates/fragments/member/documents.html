@@ -1,0 +1,82 @@
+<!--/* MemberDocumentsCard. Le filtre par catégorie est un état d'affichage (Alpine). */-->
+<div th:fragment="card(memberId, documents)" id="member-documents-card" class="card" x-data="{ category: '' }">
+  <header class="flex flex-row items-center justify-between gap-2 flex-wrap">
+    <h3 class="font-display text-lg leading-7 flex items-center gap-2">
+      <th:block th:utext="${icons.svg('file-text', 'h-4 w-4 text-primary')}"></th:block>
+      Documents
+    </h3>
+    <div class="flex items-center gap-2">
+      <select th:unless="${documents.categories().isEmpty()}" x-model="category" aria-label="Catégorie"
+              class="text-sm bg-background border border-input rounded-md px-2 py-1">
+        <option value="">Toutes catégories</option>
+        <option th:each="c : ${documents.categories()}" th:value="${c}" th:text="${c}"></option>
+      </select>
+      <button type="button" class="btn" data-variant="outline" data-size="sm"
+              onclick="document.getElementById('document-upload').showModal()">Téléverser</button>
+    </div>
+  </header>
+  <section>
+    <th:block th:if="${documents.isEmpty()}">
+      <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucun document.', null)}"></div>
+    </th:block>
+    <ul th:unless="${documents.isEmpty()}" class="divide-y divide-border">
+      <li th:each="doc : ${documents.items()}" class="py-2 flex items-center gap-3"
+          th:data-category="${doc.category().orElse('')}" x-show="!category || category === $el.dataset.category">
+        <th:block th:utext="${icons.svg('file-text', 'h-4 w-4 text-muted-foreground shrink-0')}"></th:block>
+        <div class="flex-1 min-w-0">
+          <div class="font-medium truncate" th:text="${doc.title()}"></div>
+          <div class="text-xs text-muted-foreground flex flex-wrap gap-2">
+            <span th:if="${doc.category().isPresent()}" class="badge rounded-full" data-variant="outline"
+                  th:text="${doc.category().get()}"></span>
+            <span th:text="${doc.uploadedLabel()}"></span>
+            <span th:text="${doc.sizeLabel()}"></span>
+          </div>
+        </div>
+        <a class="btn" data-variant="ghost" data-size="sm" th:href="${doc.url()}" target="_blank" rel="noreferrer"
+           aria-label="Télécharger" th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
+        <th:block th:with="dialogId=|delete-document-${doc.id()}|">
+          <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                  th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                  th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+          <dialog class="alert-dialog" th:id="${dialogId}">
+            <div>
+              <header><h2>Supprimer ce document ?</h2><p>Action irréversible.</p></header>
+              <footer>
+                <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                <button type="button" class="btn" data-variant="destructive"
+                        th:attr="hx-delete=@{/app/members/documents/{id}(id=${doc.id()}, memberId=${memberId})}"
+                        hx-target="#member-documents-card" hx-swap="outerHTML"
+                        onclick="this.closest('dialog').close()">Supprimer</button>
+              </footer>
+            </div>
+          </dialog>
+        </th:block>
+      </li>
+    </ul>
+  </section>
+</div>
+
+<dialog th:fragment="uploadDialog(memberId)" id="document-upload" class="dialog" aria-labelledby="document-upload-title">
+  <form class="max-h-[90vh] overflow-y-auto" th:attr="hx-post=@{/app/members/{id}/documents(id=${memberId})}"
+        hx-encoding="multipart/form-data" hx-target="#member-documents-card" hx-swap="outerHTML"
+        hx-indicator="find button[type=submit]">
+    <header><h2 id="document-upload-title" class="font-display text-2xl leading-8">Téléverser un document</h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="document-title">Titre</label>
+        <input class="input" id="document-title" type="text" name="title" placeholder="Bilan médical, plan…">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="document-category">Catégorie (optionnel)</label>
+        <input class="input" id="document-category" type="text" name="category" placeholder="Médical, Programme, Autre…">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="document-file">Fichier</label>
+        <input class="input" id="document-file" type="file" name="file">
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>

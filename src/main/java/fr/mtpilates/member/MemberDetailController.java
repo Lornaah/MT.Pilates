@@ -5,6 +5,10 @@ import fr.mtpilates.auth.CurrentUserService;
 import fr.mtpilates.shared.web.Toast;
 import fr.mtpilates.shared.web.ToastResponses;
 import jakarta.servlet.http.HttpServletResponse;
+import fr.mtpilates.tracking.MemberPhotoService;
+import fr.mtpilates.tracking.TrackingChartService;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -20,14 +24,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class MemberDetailController {
 
     private final MemberService members;
+    private final MemberDocumentService documents;
+    private final MemberPhotoService photos;
+    private final TrackingChartService chart;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
+    private final Clock clock;
 
-    public MemberDetailController(final MemberService members, final CurrentUserService currentUsers,
-                                  final ToastResponses toasts) {
+    public MemberDetailController(final MemberService members, final MemberDocumentService documents,
+                                  final MemberPhotoService photos, final TrackingChartService chart,
+                                  final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
         this.members = members;
+        this.documents = documents;
+        this.photos = photos;
+        this.chart = chart;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -37,6 +50,11 @@ public class MemberDetailController {
         model.addAttribute("coaches", members.coaches());
         model.addAttribute("statuses", MemberStatus.values());
         model.addAttribute("isManager", user.capacities().isManager());
+        model.addAttribute("memberId", id);
+        model.addAttribute("today", LocalDate.now(clock).toString());
+        model.addAttribute("photos", photos.photos(user, id));
+        model.addAttribute("documents", documents.documents(user, id));
+        model.addAttribute("chartPoints", chart.points(user, id));
         return "pages/member-detail";
     }
 

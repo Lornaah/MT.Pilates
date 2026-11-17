@@ -1,2 +1,4 @@
-<!--/* Emplacement des cartes « Documents » et « Documents partagés » de Ma fiche (modules M4 et M11). */-->
-<th:block th:fragment="memberDocumentsSlot"></th:block>
+<!--/* Ma fiche : documents du membre ; les documents partagés (SharedDocumentsCard) arrivent avec le module M11. */-->
+<th:block th:fragment="memberDocumentsSlot">
+  <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>
+</th:block>

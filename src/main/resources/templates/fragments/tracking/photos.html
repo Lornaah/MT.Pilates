@@ -1,0 +1,80 @@
+<!--/* MemberPhotosCard. Le dialog d'ajout est un fragment séparé, à placer hors de tout formulaire. */-->
+<div th:fragment="card(memberId, photos)" id="member-photos" class="card">
+  <header class="flex flex-row items-center justify-between">
+    <h3 class="font-display text-lg leading-7 flex items-center gap-2">
+      <th:block th:utext="${icons.svg('camera', 'h-4 w-4 text-primary')}"></th:block>
+      Photos d'évolution
+    </h3>
+    <button type="button" class="btn" data-variant="outline" data-size="sm"
+            onclick="document.getElementById('photo-upload').showModal()">Ajouter</button>
+  </header>
+  <section>
+    <th:block th:if="${photos.isEmpty()}">
+      <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucune photo enregistrée.', null)}"></div>
+    </th:block>
+    <div th:unless="${photos.isEmpty()}" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div th:each="photo : ${photos}" class="group relative rounded-lg overflow-hidden border border-border bg-muted/30">
+        <img th:src="${photo.url()}" th:alt="|${photo.sideLabel()} ${photo.takenAtIso()}|"
+             class="w-full aspect-[3/4] object-cover" loading="lazy">
+        <div class="absolute top-1 left-1">
+          <span class="badge rounded-full text-[10px]" data-variant="secondary" th:text="${photo.sideLabel()}"></span>
+        </div>
+        <div class="p-2 text-xs">
+          <div class="font-medium" th:text="${photo.takenAtLabel()}"></div>
+          <div th:if="${photo.notes().isPresent()}" class="text-muted-foreground truncate" th:text="${photo.notes().get()}"></div>
+        </div>
+        <th:block th:with="dialogId=|delete-photo-${photo.id()}|">
+          <button type="button" class="btn absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-background/70"
+                  data-variant="ghost" data-size="icon" aria-label="Supprimer la photo" th:attr="data-dialog=${dialogId}"
+                  onclick="document.getElementById(this.dataset.dialog).showModal()"
+                  th:utext="${icons.svg('trash-2', 'h-4 w-4 text-destructive')}"></button>
+          <dialog class="alert-dialog" th:id="${dialogId}">
+            <div>
+              <header><h2>Supprimer cette photo ?</h2><p>Action irréversible.</p></header>
+              <footer>
+                <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                <button type="button" class="btn" data-variant="destructive"
+                        th:attr="hx-delete=@{/app/members/photos/{id}(id=${photo.id()}, memberId=${memberId})}"
+                        hx-target="#member-photos" hx-swap="outerHTML"
+                        onclick="this.closest('dialog').close()">Supprimer</button>
+              </footer>
+            </div>
+          </dialog>
+        </th:block>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog th:fragment="uploadDialog(memberId, today)" id="photo-upload" class="dialog" aria-labelledby="photo-upload-title">
+  <form class="max-h-[90vh] overflow-y-auto" th:attr="hx-post=@{/app/members/{id}/photos(id=${memberId})}"
+        hx-encoding="multipart/form-data" hx-target="#member-photos" hx-swap="outerHTML"
+        hx-indicator="find button[type=submit]">
+    <header><h2 id="photo-upload-title" class="font-display text-2xl leading-8">Ajouter une photo</h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="photo-date">Date</label>
+        <div th:replace="~{fragments/ui/components :: datePicker('photo-date', 'takenAt', ${today}, 'Date', false, null)}"></div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="photo-side">Vue</label>
+        <select class="select" id="photo-side" name="side">
+          <option value="front" selected>Face</option>
+          <option value="side">Profil</option>
+          <option value="back">Dos</option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="photo-file">Photo</label>
+        <input class="input" id="photo-file" type="file" name="file" accept="image/*" required>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="photo-notes">Notes</label>
+        <textarea class="textarea" id="photo-notes" name="notes" rows="2"></textarea>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>

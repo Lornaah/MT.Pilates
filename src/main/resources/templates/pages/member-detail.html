@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout/app}">
-<head><title>Fiche membre — MT Pilates</title></head>
+<head>
+  <title>Fiche membre — MT Pilates</title>
+  <script th:src="@{/vendor/chart.umd.min.js}" defer></script>
+</head>
 <body>
 <th:block layout:fragment="page">
   <!--/*
@@ -93,8 +96,11 @@
               </div>
             </div>
 
-            <!--/* Mensurations (graphique, photos) et Bilans : contenus branchés avec le suivi (M4) et le bilan PDF (M5). */-->
-            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'tracking'" x-cloak id="member-tracking"></div>
+            <!--/* Bilans : contenu branché avec le bilan PDF (M5). */-->
+            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'tracking'" x-cloak id="member-tracking">
+              <div th:replace="~{fragments/tracking/chart :: card(${memberId}, ${chartPoints})}"></div>
+              <div th:replace="~{fragments/tracking/photos :: card(${memberId}, ${photos})}"></div>
+            </div>
             <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'reviews'" x-cloak id="member-reviews"></div>
           </div>
         </div>
@@ -115,10 +121,12 @@
                 <th:block th:utext="${icons.svg('video', 'h-4 w-4 mr-1')}"></th:block> Vidéos
               </button>
             </nav>
-            <!--/* Contenus branchés par les modules Entraînement (M7), Habitudes (M8), Documents (M4) et Vidéos (M6). */-->
+            <!--/* Contenus branchés par les modules Entraînement (M7), Habitudes (M8) et Vidéos (M6). */-->
             <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program"></div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits"></div>
-            <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents">
+              <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>
+            </div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'videos'" x-cloak id="member-videos"></div>
           </div>
         </div>
@@ -162,6 +170,11 @@
       </div>
     </div>
   </form>
+
+  <!--/* Dialogs des cartes, hors du formulaire de la fiche (pas de formulaires imbriqués). */-->
+  <dialog th:replace="~{fragments/tracking/photos :: uploadDialog(${memberId}, ${today})}"></dialog>
+  <dialog th:replace="~{fragments/member/documents :: uploadDialog(${memberId})}"></dialog>
+  <dialog th:replace="~{fragments/tracking/chart :: compareDialog(${memberId})}"></dialog>
 </th:block>
 
 <!--/* MemberSummaryView : lecture seule du résumé. */-->

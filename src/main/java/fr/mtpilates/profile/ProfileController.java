@@ -1,6 +1,8 @@
 package fr.mtpilates.profile;
 
+import fr.mtpilates.auth.CurrentUser;
 import fr.mtpilates.auth.CurrentUserService;
+import fr.mtpilates.member.MemberDocumentService;
 import fr.mtpilates.shared.web.Toast;
 import fr.mtpilates.shared.web.ToastResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,19 +23,24 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProfileController {
 
     private final ProfileService profiles;
+    private final MemberDocumentService documents;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
 
-    public ProfileController(final ProfileService profiles, final CurrentUserService currentUsers,
-                             final ToastResponses toasts) {
+    public ProfileController(final ProfileService profiles, final MemberDocumentService documents,
+                             final CurrentUserService currentUsers, final ToastResponses toasts) {
         this.profiles = profiles;
+        this.documents = documents;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
     }
 
     @GetMapping
     public String page(final Model model) {
-        model.addAttribute("profile", profiles.own(currentUsers.require()));
+        final CurrentUser user = currentUsers.require();
+        model.addAttribute("profile", profiles.own(user));
+        model.addAttribute("memberId", user.id());
+        model.addAttribute("documents", documents.documents(user, user.id()));
         return "pages/profile";
     }
 

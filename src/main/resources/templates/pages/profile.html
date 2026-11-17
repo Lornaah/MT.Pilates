@@ -99,6 +99,7 @@
       <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
     </button>
   </form>
+  <dialog th:replace="~{fragments/member/documents :: uploadDialog(${memberId})}"></dialog>
 </th:block>
 </body>
 </html>

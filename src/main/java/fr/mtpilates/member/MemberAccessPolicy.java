@@ -22,6 +22,16 @@ public class MemberAccessPolicy {
         return canView(user, memberId, memberCoachId);
     }
 
+    /** {@code can_manage_member} et soi-même : photos, documents, lecture des bilans hebdomadaires. */
+    public boolean canManage(final CurrentUser user, final UUID memberId, final Optional<UUID> memberCoachId) {
+        return canView(user, memberId, memberCoachId);
+    }
+
+    /** Mensurations : lisibles par le membre et par tout le staff ({@code is_staff}), écrites par le membre seul. */
+    public boolean canReadTracking(final CurrentUser user, final UUID memberId) {
+        return user.id().equals(memberId) || DataAccessRoles.isStaff(user.realRoles());
+    }
+
     public boolean canCreate(final CurrentUser user) {
         return isManagement(user);
     }

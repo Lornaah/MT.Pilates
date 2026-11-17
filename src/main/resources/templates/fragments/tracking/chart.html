@@ -1,0 +1,132 @@
+<!--/*
+  TrackingChartCard : courbes d'évolution (Chart.js). Mode, période et séries affichées sont un état d'affichage
+  (Alpine) ; les données, l'export CSV et la comparaison de deux dates viennent du serveur.
+  Aucun champ nommé ici : la carte peut se trouver dans un formulaire (fiche membre).
+*/-->
+<div th:fragment="card(memberId, points)" class="card" th:data-points="${json.write(points)}"
+     x-data="trackingChart(JSON.parse($el.dataset.points))">
+  <header class="space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <h3 class="font-display text-lg leading-7">Évolution</h3>
+        <span class="badge font-normal text-xs" data-variant="secondary"
+              x-text="mode === 'relative' ? 'Tendances relatives' : 'Valeurs brutes'">Tendances relatives</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center rounded-lg border border-border overflow-hidden">
+          <button type="button" @click="mode = 'relative'" :aria-pressed="mode === 'relative'"
+                  :class="mode === 'relative' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground'"
+                  class="px-3 py-1.5 text-xs font-medium transition-colors">
+            <th:block th:utext="${icons.svg('activity', 'h-3.5 w-3.5 inline mr-1')}"></th:block>Relatif
+          </button>
+          <button type="button" @click="mode = 'absolute'" :aria-pressed="mode === 'absolute'"
+                  :class="mode === 'absolute' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground'"
+                  class="px-3 py-1.5 text-xs font-medium transition-colors">
+            <th:block th:utext="${icons.svg('chart-column', 'h-3.5 w-3.5 inline mr-1')}"></th:block>Brut
+          </button>
+        </div>
+        <select class="select w-28 h-8 text-xs" x-model="period" aria-label="Période">
+          <option value="1">1 mois</option>
+          <option value="3">3 mois</option>
+          <option value="6">6 mois</option>
+          <option value="12">1 an</option>
+          <option value="all" selected>Tout</option>
+        </select>
+        <button type="button" class="btn" data-variant="outline" data-size="sm"
+                onclick="document.getElementById('tracking-compare').showModal()">
+          <th:block th:utext="${icons.svg('git-compare', 'h-4 w-4 mr-1')}"></th:block> Comparer
+        </button>
+        <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/members/{id}/tracking.csv(id=${memberId})}" download>
+          <th:block th:utext="${icons.svg('download', 'h-4 w-4 mr-1')}"></th:block> CSV
+        </a>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-1.5">
+      <template x-for="field in fields" :key="field.key">
+        <span class="badge rounded-full cursor-pointer select-none text-xs" @click="toggle(field.key)"
+              :data-variant="isActive(field.key) ? 'default' : 'outline'"
+              :style="isActive(field.key) ? `background-color: ${field.color}; border-color: ${field.color}` : ''"
+              x-text="field.label"></span>
+      </template>
+    </div>
+  </header>
+  <section class="space-y-4">
+    <div x-show="rows.length > 0" class="h-80 w-full"><canvas x-ref="canvas"></canvas></div>
+    <div x-show="rows.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <template x-for="tile in tiles" :key="tile.key">
+        <div class="rounded-xl border border-border bg-card p-2.5 space-y-1">
+          <div class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full" :style="`background-color: ${tile.color}`"></span>
+            <span class="text-[10px] uppercase tracking-wide text-muted-foreground font-medium truncate" x-text="tile.label"></span>
+          </div>
+          <div class="flex items-baseline gap-1">
+            <span class="font-display text-lg font-semibold leading-none" x-text="tile.last"></span>
+            <span class="text-[10px] text-muted-foreground" x-text="tile.unit"></span>
+          </div>
+          <div class="flex items-center gap-1 text-xs">
+            <span x-show="tile.delta === 0" th:utext="${icons.svg('minus', 'h-3 w-3 text-muted-foreground')}"></span>
+            <span x-show="tile.delta > 0" th:utext="${icons.svg('trending-up', 'h-3 w-3')}"></span>
+            <span x-show="tile.delta < 0" th:utext="${icons.svg('trending-down', 'h-3 w-3')}"></span>
+            <span class="font-medium" :class="tile.delta === 0 ? 'text-muted-foreground' : (tile.good ? 'text-green-600' : 'text-orange-500')"
+                  x-text="`${tile.delta > 0 ? '+' : ''}${tile.delta.toFixed(1)} ${tile.unit}`"></span>
+            <span class="text-muted-foreground text-[10px]" x-text="`(${tile.delta > 0 ? '+' : ''}${tile.pct.toFixed(1)}%)`"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+    <template x-if="rows.length === 0"><p class="text-sm text-muted-foreground">Aucune mesure sur la période.</p></template>
+  </section>
+</div>
+
+<!--/* « Comparer deux dates » : à placer hors de tout formulaire (ses champs de date sont nommés). */-->
+<dialog th:fragment="compareDialog(memberId)" id="tracking-compare" class="dialog" aria-labelledby="tracking-compare-title">
+  <div class="max-w-3xl">
+    <header><h2 id="tracking-compare-title">Comparer deux dates</h2></header>
+    <form class="grid grid-cols-2 gap-4" th:attr="hx-get=@{/app/members/{id}/tracking/compare(id=${memberId})}"
+          hx-trigger="change" hx-target="#tracking-comparison" hx-swap="outerHTML" onsubmit="return false">
+      <div class="space-y-2">
+        <label class="label" for="compare-a">Date A</label>
+        <div th:replace="~{fragments/ui/components :: datePicker('compare-a', 'a', '', 'Date A', false, null)}"></div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="compare-b">Date B</label>
+        <div th:replace="~{fragments/ui/components :: datePicker('compare-b', 'b', '', 'Date B', false, null)}"></div>
+      </div>
+    </form>
+    <div id="tracking-comparison"></div>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </div>
+</dialog>
+
+<div th:fragment="comparison" id="tracking-comparison">
+  <div th:if="${comparison.any()}" class="grid grid-cols-2 gap-4 mt-2">
+    <div th:replace="~{::snapshot(${comparison.left()})}"></div>
+    <div th:replace="~{::snapshot(${comparison.right()})}"></div>
+  </div>
+  <div th:unless="${comparison.deltas().isEmpty()}" class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+    <div th:each="d : ${comparison.deltas()}" class="p-2 rounded-sm bg-muted/40 text-sm">
+      <div class="text-xs text-muted-foreground" th:text="${d.label()}"></div>
+      <div class="font-display">
+        <th:block th:text="|${d.from()} → ${d.to()}|"></th:block>
+        <span th:class="${d.sign() > 0 ? 'text-orange-500' : (d.sign() < 0 ? 'text-green-600' : 'text-muted-foreground')}"
+              th:text="|(${d.change()})|"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div th:fragment="snapshot(snap)" class="space-y-2">
+  <div class="text-xs uppercase text-muted-foreground" th:text="${snap.isPresent() ? snap.get().dateLabel() : '—'}"></div>
+  <div th:if="${snap.isPresent() and snap.get().hasEntry()}" class="text-sm space-y-0.5">
+    <div th:each="line : ${snap.get().lines()}" class="flex justify-between">
+      <span class="text-muted-foreground" th:text="${line.label()}"></span>
+      <span class="font-medium" th:text="${line.value()}"></span>
+    </div>
+  </div>
+  <div class="grid grid-cols-3 gap-1">
+    <th:block th:if="${snap.isPresent()}">
+      <img th:each="p : ${snap.get().photos()}" th:src="${p.url()}" alt="" class="aspect-[3/4] object-cover rounded-sm">
+    </th:block>
+  </div>
+</div>

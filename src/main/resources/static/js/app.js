@@ -199,6 +199,159 @@ document.addEventListener("alpine:init", () => {
     return chars.join("");
   });
 
+  // Graphique d'évolution (TrackingChartCard) : mode relatif/brut, période et séries affichées.
+  const CHART_FIELDS = [
+    { key: "weightKg", label: "Poids (kg)", unit: "kg", cssVar: "--chart-weight", lowerIsBetter: true },
+    { key: "waistCm", label: "Tour de taille", unit: "cm", cssVar: "--chart-waist", lowerIsBetter: true },
+    { key: "hipCm", label: "Hanches", unit: "cm", cssVar: "--chart-hip", lowerIsBetter: false },
+    { key: "chestCm", label: "Poitrine", unit: "cm", cssVar: "--chart-chest", lowerIsBetter: false },
+    { key: "armCm", label: "Bras", unit: "cm", cssVar: "--chart-arm", lowerIsBetter: false },
+    { key: "thighCm", label: "Cuisses", unit: "cm", cssVar: "--chart-thigh", lowerIsBetter: false },
+  ];
+  const cssColor = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  Alpine.data("trackingChart", (points = []) => {
+    let chart = null; // hors du proxy réactif d'Alpine : Chart.js gère son propre état
+    return {
+      points,
+      mode: "relative",
+      period: "all",
+      active: CHART_FIELDS.map((f) => f.key),
+      fields: CHART_FIELDS.map((f) => ({ ...f, color: cssColor(f.cssVar) })),
+      init() {
+        const draw = () => this.draw();
+        if (window.Chart) this.$nextTick(draw); else window.addEventListener("load", draw, { once: true });
+        this.$watch("mode", draw);
+        this.$watch("period", draw);
+        this.$watch("active", draw);
+      },
+      isActive(key) { return this.active.includes(key); },
+      toggle(key) {
+        this.active = this.isActive(key) ? this.active.filter((k) => k !== key) : [...this.active, key];
+      },
+      get rows() {
+        if (this.period === "all") return this.points;
+        const cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - Number(this.period));
+        return this.points.filter((p) => new Date(`${p.date}T00:00:00`) >= cutoff);
+      },
+      get baselines() {
+        const map = {};
+        for (const f of CHART_FIELDS) map[f.key] = this.rows.map((r) => r[f.key]).find((v) => v != null) ?? null;
+        return map;
+      },
+      value(row, key) {
+        const raw = row[key];
+        if (this.mode !== "relative") return raw ?? null;
+        const base = this.baselines[key];
+        return raw != null && base != null && base !== 0 ? Number(((raw / base) * 100).toFixed(2)) : null;
+      },
+      get activeFields() { return this.fields.filter((f) => this.isActive(f.key)); },
+      get tiles() {
+        return this.activeFields.flatMap((f) => {
+          const first = this.baselines[f.key];
+          const last = [...this.rows].reverse().map((r) => r[f.key]).find((v) => v != null) ?? null;
+          if (first == null || last == null) return [];
+          const delta = last - first;
+          const pct = first !== 0 ? (delta / first) * 100 : 0;
+          return [{ ...f, last, delta, pct, good: f.lowerIsBetter ? delta < 0 : delta > 0 }];
+        });
+      },
+      get domain() {
+        const values = this.rows.flatMap((r) => this.activeFields.map((f) => this.value(r, f.key))).filter((v) => v != null);
+        if (values.length === 0) return [95, 105];
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const pad = Math.max((max - min) * 0.15, 2);
+        return [Math.floor(min - pad), Math.ceil(max + pad)];
+      },
+      draw() {
+        if (!window.Chart || this.rows.length === 0) return;
+        const relative = this.mode === "relative";
+        const border = cssColor("--border");
+        const muted = cssColor("--muted-foreground");
+        const config = {
+          type: "line",
+          data: {
+            labels: this.rows.map((r) => r.label),
+            datasets: this.activeFields.map((f) => ({
+              label: f.label,
+              data: this.rows.map((r) => this.value(r, f.key)),
+              borderColor: f.color,
+              backgroundColor: f.color,
+              borderWidth: 2.5,
+              pointRadius: 3,
+              pointBorderWidth: 2,
+              pointBackgroundColor: cssColor("--background"),
+              pointHoverRadius: 5,
+              cubicInterpolationMode: "monotone",
+              spanGaps: true,
+            })),
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 5, right: 10 } },
+            interaction: { mode: "index", intersect: false },
+            scales: {
+              x: {
+                grid: { color: border, tickBorderDash: [3, 3] },
+                border: { color: border, dash: [3, 3] },
+                ticks: { color: muted, font: { size: 11 } },
+              },
+              y: {
+                min: relative ? this.domain[0] : undefined,
+                max: relative ? this.domain[1] : undefined,
+                grid: { color: border },
+                border: { display: false, dash: [3, 3] },
+                // Recharts vise environ 5 graduations entières.
+                ticks: {
+                  color: muted,
+                  font: { size: 11 },
+                  stepSize: relative ? Math.max(1, Math.ceil((this.domain[1] - this.domain[0]) / 4)) : undefined,
+                  maxTicksLimit: relative ? undefined : 5,
+                  callback: (v) => (relative ? `${v}%` : String(v)),
+                },
+              },
+            },
+            plugins: {
+              legend: { position: "bottom", labels: { color: cssColor("--foreground"), font: { size: 12 }, usePointStyle: true, pointStyle: "line" } },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => {
+                    const field = this.activeFields[ctx.datasetIndex];
+                    const raw = this.rows[ctx.dataIndex][field.key];
+                    return relative && raw != null
+                      ? `${field.label} : ${ctx.parsed.y}% (${raw} ${field.unit})`
+                      : `${field.label} : ${ctx.parsed.y}`;
+                  },
+                },
+              },
+            },
+          },
+          plugins: [{
+            id: "referenceLine",
+            afterDatasetsDraw: (c) => {
+              if (!relative) return;
+              const y = c.scales.y.getPixelForValue(100);
+              const { left, right } = c.chartArea;
+              c.ctx.save();
+              c.ctx.setLineDash([4, 4]);
+              c.ctx.globalAlpha = 0.5;
+              c.ctx.strokeStyle = muted;
+              c.ctx.beginPath();
+              c.ctx.moveTo(left, y);
+              c.ctx.lineTo(right, y);
+              c.ctx.stroke();
+              c.ctx.restore();
+            },
+          }],
+        };
+        if (chart) chart.destroy();
+        chart = new window.Chart(this.$refs.canvas, config);
+      },
+    };
+  });
+
   // Saisie de tags (TagInput de l'original) : Entrée ou « + » ajoute, la croix retire.
   Alpine.data("tagInput", (initial = []) => ({
     tags: [...initial],
