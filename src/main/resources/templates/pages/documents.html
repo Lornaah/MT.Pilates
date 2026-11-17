@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Documents — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Documents', 'Bibliothèque partagée : guides, fiches, contrats…', ~{::newDocument}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <button th:fragment="newDocument" type="button" class="btn" hx-get="/app/coach/documents/new" hx-target="#document-dialog-slot" hx-swap="innerHTML">
+      <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouveau document
+    </button>
+  </th:block>
+  <div class="container py-8 space-y-6"
+       x-data="{ search: '', visibility: 'all', categories: [], tags: [],
+                 toggle(list, v) { this[list] = this[list].includes(v) ? this[list].filter((x) => x !== v) : [...this[list], v]; },
+                 matches(el) {
+                   const d = el.dataset; const q = this.search.trim().toLowerCase();
+                   if (q && !d.search.includes(q)) return false;
+                   if (this.categories.length && !this.categories.includes(d.category)) return false;
+                   if (this.tags.length && !this.tags.every((t) => JSON.parse(d.tags).includes(t))) return false;
+                   return this.visibility === 'all' || d.visibility === this.visibility;
+                 } }">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="relative md:col-span-2">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Rechercher…" aria-label="Rechercher" x-model="search">
+      </div>
+      <select class="select" x-model="visibility" aria-label="Visibilité">
+        <option value="all" selected>Toutes visibilités</option>
+        <option value="staff_only">Équipe uniquement</option>
+        <option value="all_members">Tous les membres</option>
+        <option value="specific">Membres spécifiques</option>
+      </select>
+      <div class="flex flex-wrap gap-1 items-center">
+        <button th:each="c : ${categories}" type="button" th:data-value="${c.key}" @click="toggle('categories', $el.dataset.value)"
+                :class="categories.includes($el.dataset.value) ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent'"
+                class="px-2 py-1 rounded-full text-xs border transition-colors" th:text="${c.value}"></button>
+      </div>
+    </div>
+    <div th:unless="${allTags.isEmpty()}" class="flex flex-wrap gap-1 items-center">
+      <span class="text-xs text-muted-foreground mr-1">Tags :</span>
+      <button th:each="t : ${allTags}" type="button" th:data-value="${t}" @click="toggle('tags', $el.dataset.value)"
+              :class="tags.includes($el.dataset.value) ? 'bg-secondary text-secondary-foreground border-secondary' : 'border-border hover:bg-accent'"
+              class="px-2 py-0.5 rounded-full text-[11px] border transition-colors" th:text="|#${t}|"></button>
+    </div>
+    <div th:replace="~{::grid}"></div>
+    <div id="document-dialog-slot"></div>
+  </div>
+</th:block>
+
+<div th:fragment="grid" id="document-grid"
+     x-data="{ get visible() { return [...$root.querySelectorAll('[data-document]')].filter((el) => matches(el)).length; } }">
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('file-text', 'Aucun document', #{documents.empty.message}, null)}"></div>
+  </template>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" x-show="visible > 0">
+    <div th:each="d : ${documents}" class="card hover:shadow-elevated transition-shadow" data-document
+         th:data-search="${#strings.toLowerCase(d.title() + ' ' + d.description().orElse(''))}" th:data-category="${d.category()}"
+         th:data-visibility="${d.visibility()}" th:data-tags="${json.write(d.tags())}" x-show="matches($el)">
+      <section class="pt-5 pb-4 space-y-3">
+        <div class="flex items-start gap-3">
+          <div class="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0" th:utext="${icons.svg(d.icon(), 'h-5 w-5')}"></div>
+          <div class="min-w-0 flex-1">
+            <div class="font-display text-base leading-tight truncate" th:text="${d.title()}"></div>
+            <div th:if="${d.description().isPresent()}" class="text-xs text-muted-foreground line-clamp-2 mt-0.5" th:text="${d.description().get()}"></div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <span class="badge text-[10px] leading-normal" data-variant="secondary" th:text="${d.categoryLabel()}"></span>
+          <span class="badge text-[10px] leading-normal" data-variant="outline"><th:block th:utext="${icons.svg(d.visibilityIcon(), 'h-3 w-3 mr-1')}"></th:block><th:block th:text="${d.visibilityLabel()}"></th:block></span>
+          <span class="badge text-[10px] leading-normal" data-variant="outline" th:text="${d.sizeLabel()}"></span>
+        </div>
+        <div th:unless="${d.tags().isEmpty()}" class="flex flex-wrap gap-1">
+          <span th:each="t, it : ${d.tags()}" th:if="${it.index < 4}" class="text-[10px] text-muted-foreground" th:text="|#${t}|"></span>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/documents/{id}(id=${d.id()})}" target="_blank" rel="noopener"
+             aria-label="Télécharger" th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" aria-label="Modifier"
+                  th:attr="hx-get=@{/app/coach/documents/{id}/edit(id=${d.id()})}" hx-target="#document-dialog-slot" hx-swap="innerHTML"
+                  th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+          <th:block th:with="dialogId=|delete-document-${d.id()}|">
+            <button type="button" class="btn text-destructive hover:text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                    th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                    th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+            <dialog class="alert-dialog" th:id="${dialogId}">
+              <div>
+                <header><h2>Supprimer le document ?</h2><p th:text="#{documents.delete.description}"></p></header>
+                <footer>
+                  <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                  <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/documents/{id}(id=${d.id()})}"
+                          hx-target="#document-grid" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                </footer>
+              </div>
+            </dialog>
+          </th:block>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog th:fragment="documentDialog" id="document-form" class="dialog" aria-labelledby="document-form-title" x-data x-init="$el.showModal()" th:with="f=${form}">
+  <form class="max-w-xl max-h-[90vh] overflow-y-auto" hx-target="#document-grid" hx-swap="outerHTML" hx-indicator="find button[type=submit]"
+        th:attr="hx-post=${f.id().isPresent() ? '/app/coach/documents/' + f.id().get() : '/app/coach/documents'}"
+        th:data-visibility="${f.visibility()}" x-data="{ visibility: $el.dataset.visibility, dragOver: false }">
+    <header><h2 id="document-form-title" class="font-display text-2xl leading-8" th:text="${f.id().isPresent() ? 'Modifier le document' : 'Nouveau document'}"></h2></header>
+    <div class="space-y-4">
+      <div @dragover.prevent="dragOver = true" @dragleave="dragOver = false"
+           @drop.prevent="dragOver = false; $refs.file.files = $event.dataTransfer.files; $refs.file.dispatchEvent(new Event('change'))"
+           @click="$refs.file.click()" :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent/50'"
+           class="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors">
+        <th:block th:utext="${icons.svg('upload', 'h-8 w-8 mx-auto text-muted-foreground')}"></th:block>
+        <div th:replace="~{::uploadedState(${f.fileUrl()}, ${f.sizeLabel()}, ${f.mime()})}"></div>
+        <input type="hidden" name="fileSize" id="document-file-size" th:value="${f.fileSize()}">
+        <input type="hidden" name="mimeType" id="document-mime" th:value="${f.mime()}">
+        <input type="file" class="hidden" name="file" x-ref="file" @click.stop
+               hx-post="/app/coach/documents/upload" hx-encoding="multipart/form-data" hx-params="file,title" hx-include="#document-title"
+               hx-trigger="change" hx-target="#document-uploaded" hx-swap="outerHTML" hx-indicator="#document-uploaded">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="document-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="document-title" type="text" name="title" th:value="${f.title()}">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="document-description">Description</label>
+        <textarea class="textarea" id="document-description" name="description" rows="3" th:text="${f.description()}"></textarea>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <label class="label" for="document-category">Catégorie</label>
+          <select class="select" id="document-category" name="category">
+            <option th:each="c : ${categories}" th:value="${c.key}" th:text="${c.value}" th:selected="${c.key == f.category()}"></option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="document-visibility">Visibilité</label>
+          <select class="select" id="document-visibility" name="visibility" x-model="visibility">
+            <option value="staff_only">Équipe uniquement</option>
+            <option value="all_members">Tous les membres</option>
+            <option value="specific">Membres spécifiques</option>
+          </select>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label">Tags</label>
+        <div th:replace="~{fragments/ui/components :: tagInput('tags', ${f.tags()}, 'Entrée pour ajouter…', 'secondary')}"></div>
+      </div>
+      <div x-show="visibility === 'specific'" x-cloak class="space-y-2">
+        <label class="label">Membres autorisés</label>
+        <div class="border rounded-md p-3 max-h-40 overflow-y-auto space-y-1">
+          <label th:each="m : ${members}" class="flex items-center gap-2 text-sm cursor-pointer">
+            <input class="input" type="checkbox" name="sharedWithIds" th:value="${m.id()}" th:checked="${f.sharedWithIds().contains(m.id())}">
+            <span class="truncate"><th:block th:text="${m.name()}"></th:block> <span class="text-muted-foreground text-xs" th:text="|(${m.email()})|"></span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<!--/* État de la zone de dépôt ; les champs cachés repartent avec le formulaire. */-->
+<div th:fragment="uploadedState(fileUrl, sizeLabel, mime)" id="document-uploaded" class="group">
+  <input type="hidden" name="fileUrl" th:value="${fileUrl}">
+  <th:block th:unless="${#strings.isEmpty(fileUrl)}">
+    <div class="mt-2 text-sm">
+      <span class="font-medium">Fichier prêt</span> · <th:block th:text="|${sizeLabel} · ${mime}|"></th:block>
+      <div class="text-xs text-muted-foreground mt-1">Clique ou dépose pour remplacer.</div>
+    </div>
+  </th:block>
+  <div th:if="${#strings.isEmpty(fileUrl)}" class="mt-2 text-sm text-muted-foreground">
+    <span class="group-[.htmx-request]:hidden">Glisse-dépose un fichier ou clique pour parcourir</span>
+    <span class="hidden group-[.htmx-request]:inline">Envoi en cours…</span>
+  </div>
+</div>
+
+<div th:fragment="uploaded" th:remove="tag">
+  <div th:replace="~{::uploadedState(${uploaded.path()}, ${uploaded.sizeLabel()}, ${uploaded.mime()})}"></div>
+  <input th:if="${#strings.isEmpty(currentTitle)}" type="text" class="input" id="document-title" name="title"
+         th:value="${uploaded.suggestedTitle()}" hx-swap-oob="true">
+  <input type="hidden" name="fileSize" id="document-file-size" th:value="${uploaded.size()}" hx-swap-oob="true">
+  <input type="hidden" name="mimeType" id="document-mime" th:value="${uploaded.mime()}" hx-swap-oob="true">
+</div>
+</body>
+</html>

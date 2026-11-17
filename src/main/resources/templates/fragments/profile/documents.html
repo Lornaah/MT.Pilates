@@ -1,4 +1,32 @@
-<!--/* Ma fiche : documents du membre ; les documents partagés (SharedDocumentsCard) arrivent avec le module M11. */-->
+<!--/* Ma fiche : documents du membre puis documents partagés de la bibliothèque (SharedDocumentsCard). */-->
 <th:block th:fragment="memberDocumentsSlot">
   <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>
+  <div class="card" x-data="{ search: '' }">
+    <header><h3 class="font-display text-xl leading-7 flex items-center gap-2">
+      <th:block th:utext="${icons.svg('file-text', 'h-5 w-5')}"></th:block> Documents partagés
+    </h3></header>
+    <section class="space-y-4">
+      <div class="relative">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Rechercher…" aria-label="Rechercher un document partagé" x-model="search">
+      </div>
+      <p class="text-sm text-muted-foreground italic" x-show="[...$root.querySelectorAll('[data-shared]')].filter((el) => !search.trim() || el.dataset.search.includes(search.trim().toLowerCase())).length === 0">Aucun document partagé pour le moment.</p>
+      <ul th:unless="${sharedDocuments.isEmpty()}" class="divide-y">
+        <li th:each="d : ${sharedDocuments}" class="py-3 flex items-center gap-3" data-shared
+            th:data-search="${#strings.toLowerCase(d.title() + ' ' + d.description().orElse('') + ' ' + #strings.listJoin(d.tags(), ' '))}"
+            x-show="!search.trim() || $el.dataset.search.includes(search.trim().toLowerCase())">
+          <div class="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0" th:utext="${icons.svg(d.icon(), 'h-4 w-4')}"></div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium truncate" th:text="${d.title()}"></div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="badge text-[10px] leading-normal" data-variant="secondary" th:text="${d.categoryLabel()}"></span>
+              <span class="text-[11px] text-muted-foreground" th:text="${d.sizeLabel()}"></span>
+            </div>
+          </div>
+          <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/documents/{id}(id=${d.id()})}" target="_blank" rel="noopener"
+             aria-label="Télécharger" th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
+        </li>
+      </ul>
+    </section>
+  </div>
 </th:block>

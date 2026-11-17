@@ -2,6 +2,7 @@ package fr.mtpilates.profile;
 
 import fr.mtpilates.auth.CurrentUser;
 import fr.mtpilates.auth.CurrentUserService;
+import fr.mtpilates.document.DocumentService;
 import fr.mtpilates.member.MemberDocumentService;
 import fr.mtpilates.shared.web.Toast;
 import fr.mtpilates.shared.web.ToastResponses;
@@ -24,13 +25,15 @@ public class ProfileController {
 
     private final ProfileService profiles;
     private final MemberDocumentService documents;
+    private final DocumentService sharedDocuments;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
 
     public ProfileController(final ProfileService profiles, final MemberDocumentService documents,
-                             final CurrentUserService currentUsers, final ToastResponses toasts) {
+                             final DocumentService sharedDocuments, final CurrentUserService currentUsers, final ToastResponses toasts) {
         this.profiles = profiles;
         this.documents = documents;
+        this.sharedDocuments = sharedDocuments;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
     }
@@ -41,6 +44,7 @@ public class ProfileController {
         model.addAttribute("profile", profiles.own(user));
         model.addAttribute("memberId", user.id());
         model.addAttribute("documents", documents.documents(user, user.id()));
+        model.addAttribute("sharedDocuments", sharedDocuments.shared(user));
         return "pages/profile";
     }
 

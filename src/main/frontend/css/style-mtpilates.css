@@ -8,6 +8,8 @@
   /* ------------------------------------------------------------- Button */
   .btn {
     @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0;
+    /* Le Button shadcn peut rétrécir dans un flex (Basecoat impose shrink-0). */
+    flex-shrink: 1;
   }
   .btn:not([data-size]),
   .btn[data-size='default'] { @apply h-10 px-5 py-2; }
@@ -72,6 +74,9 @@
   }
   .input[type='checkbox']:not([role='switch']) {
     @apply h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 checked:bg-primary checked:text-primary-foreground;
+    /* Icône Check 16 px de Radix, centrée dans la case de 14 px (débordement identique). */
+    --check-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>');
+    &:checked::after { @apply size-full mask-size-[1rem]; }
   }
   .input[type='checkbox'][role='switch'] {
     @apply h-6 w-11 cursor-pointer rounded-full border-2 border-transparent bg-input transition-colors checked:bg-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;

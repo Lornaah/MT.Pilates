@@ -599,3 +599,13 @@ document.addEventListener("dialog-close", (event) => {
   dialog.close();
   dialog.querySelectorAll("form").forEach((form) => form.reset());
 });
+
+// Radix (FocusScope) sélectionne le texte du premier champ focalisé à l'ouverture d'un dialog : même rendu ici.
+const nativeShowModal = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function showModal() {
+  nativeShowModal.call(this);
+  const focused = document.activeElement;
+  if (focused instanceof HTMLInputElement && this.contains(focused) && typeof focused.select === "function") {
+    focused.select();
+  }
+};
