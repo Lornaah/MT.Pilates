@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Calendrier — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div x-data="{ tab: 'mine', myView: 'list', genView: 'list' }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Agenda', 'Votre calendrier', 'Gérez vos cours, rendez-vous et tâches.', ~{::newEvent}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <button th:fragment="newEvent" type="button" class="btn" data-variant="hero"
+              hx-get="/app/calendar/new" hx-target="#calendar-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouvel événement
+      </button>
+    </th:block>
+    <div class="container py-8">
+      <div th:replace="~{::calendarBody}"></div>
+    </div>
+    <div id="calendar-dialog-slot"></div>
+  </div>
+</th:block>
+
+<div th:fragment="calendarBody" id="calendar-body">
+  <form id="calendar-state" class="hidden">
+    <input type="hidden" name="myMonth" th:value="${mineMonth.key()}">
+    <input type="hidden" name="genMonth" th:value="${generalMonth != null ? generalMonth.key() : ''}">
+    <input type="hidden" name="coach" th:value="${state.coachOrAll()}">
+  </form>
+  <div th:if="${isOwner}" class="tabs">
+    <nav role="tablist" class="mb-4">
+      <button type="button" role="tab" :aria-selected="tab === 'mine'" @click="tab = 'mine'">Mon agenda</button>
+      <button type="button" role="tab" :aria-selected="tab === 'general'" @click="tab = 'general'">Calendrier général</button>
+    </nav>
+    <div role="tabpanel" x-show="tab === 'mine'">
+      <div th:replace="~{::mySection}"></div>
+    </div>
+    <div role="tabpanel" x-show="tab === 'general'" x-cloak>
+      <div class="tabs">
+        <div class="tabs-bar flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <nav role="tablist">
+            <button type="button" role="tab" :aria-selected="genView === 'list'" @click="genView = 'list'">Liste</button>
+            <button type="button" role="tab" :aria-selected="genView === 'month'" @click="genView = 'month'">Mois</button>
+          </nav>
+          <div class="flex items-center gap-2 flex-wrap">
+            <label class="label text-xs leading-4 text-muted-foreground">Coach :</label>
+            <div class="flex gap-1 flex-wrap">
+              <button type="button" class="px-2.5 py-1 rounded-full text-xs transition-colors"
+                      th:classappend="${state.coachOrAll() == 'all'} ? 'bg-foreground text-background' : 'bg-muted hover:bg-muted/80'"
+                      hx-get="/app/calendar" hx-include="#calendar-state" hx-vals='{"coach": "all"}'
+                      hx-target="#calendar-body" hx-swap="outerHTML">Tous</button>
+              <button th:each="c : ${staff}" type="button" class="px-2.5 py-1 rounded-full text-xs transition-colors border border-transparent"
+                      th:classappend="${state.coachOrAll() == c.id().toString()} ? |${c.badge()} border-current| : 'bg-muted hover:bg-muted/80'"
+                      th:attr="hx-vals=|{&quot;coach&quot;: &quot;${c.id()}&quot;}|" hx-get="/app/calendar" hx-include="#calendar-state"
+                      hx-target="#calendar-body" hx-swap="outerHTML" th:text="${c.name()}"></button>
+            </div>
+          </div>
+        </div>
+        <div role="tabpanel" x-show="genView === 'list'">
+          <div th:replace="~{::listView(${generalByDay}, true)}"></div>
+        </div>
+        <div role="tabpanel" x-show="genView === 'month'" x-cloak>
+          <div th:replace="~{::monthView(${generalMonth}, true, 'genMonth', 'general')}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <th:block th:unless="${isOwner}">
+    <div th:replace="~{::mySection}"></div>
+  </th:block>
+</div>
+
+<div th:fragment="mySection" class="tabs">
+  <nav role="tablist" class="mb-4">
+    <button type="button" role="tab" :aria-selected="myView === 'list'" @click="myView = 'list'">Liste</button>
+    <button type="button" role="tab" :aria-selected="myView === 'month'" @click="myView = 'month'">Mois</button>
+  </nav>
+  <div role="tabpanel" x-show="myView === 'list'">
+    <div th:replace="~{::listView(${mineByDay}, false)}"></div>
+  </div>
+  <div role="tabpanel" x-show="myView === 'month'" x-cloak>
+    <div th:replace="~{::monthView(${mineMonth}, false, 'myMonth', 'mine')}"></div>
+  </div>
+</div>
+
+<div th:fragment="listView(groups, showCoach)" class="space-y-8">
+  <th:block th:if="${groups.isEmpty()}">
+    <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucun événement.', null)}"></div>
+  </th:block>
+  <div th:each="g : ${groups}">
+    <h3 class="font-display text-xl leading-7 capitalize mb-3" th:text="${g.header()}"></h3>
+    <div class="space-y-3">
+      <th:block th:each="e : ${g.events()}"><div th:replace="~{::eventCard(${e}, ${showCoach})}"></div></th:block>
+    </div>
+  </div>
+  <button type="button" class="btn gap-2" data-variant="outline" hx-get="/app/calendar/new" hx-target="#calendar-dialog-slot" hx-swap="innerHTML">
+    <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter un événement
+  </button>
+</div>
+
+<div th:fragment="eventCard(e, showCoach)" class="card">
+  <div class="p-4 flex items-center gap-4">
+    <div class="text-center w-16 shrink-0">
+      <div class="font-display text-lg leading-none" th:text="${e.startTime()}"></div>
+      <div class="text-xs text-muted-foreground mt-1" th:text="${e.endTime()}"></div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="badge rounded-full text-xs" th:attr="data-variant=${e.type().variant()}" th:text="${e.type().label()}"></span>
+        <th:block th:if="${e.privateEvent()}" th:utext="${icons.svg('lock', 'h-3 w-3 text-muted-foreground')}"></th:block>
+        <span th:if="${showCoach and e.coachName().isPresent()}" th:class="|badge rounded-full text-xs gap-1 border-transparent ${e.coachBadge()}|"
+              data-variant="outline">
+          <th:block th:utext="${icons.svg('user', 'h-3 w-3')}"></th:block><th:block th:text="${e.coachName().get()}"></th:block>
+        </span>
+      </div>
+      <div class="font-medium mt-1" th:text="${e.title()}"></div>
+      <div th:if="${e.description().isPresent()}" class="text-xs text-muted-foreground mt-0.5" th:text="${e.description().get()}"></div>
+      <div class="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+        <span th:if="${e.location().isPresent()}" class="flex items-center gap-1">
+          <th:block th:utext="${icons.svg('map-pin', 'h-3 w-3')}"></th:block><th:block th:text="${e.location().get()}"></th:block>
+        </span>
+        <span th:if="${e.visio()}" class="flex items-center gap-1">
+          <th:block th:utext="${icons.svg('video', 'h-3 w-3')}"></th:block>Visio
+        </span>
+      </div>
+    </div>
+    <th:block th:with="dialogId=|delete-event-${e.id()}-${showCoach}|">
+      <button type="button" class="btn text-destructive hover:text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+              th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+              th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+      <dialog class="alert-dialog" th:id="${dialogId}">
+        <div>
+          <header><h2>Supprimer cet événement ?</h2><p th:text="|L'événement « ${e.title()} » sera définitivement supprimé.|"></p></header>
+          <footer>
+            <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+            <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/calendar/events/{id}(id=${e.id()})}"
+                    hx-include="#calendar-state" hx-target="#calendar-body" hx-swap="outerHTML"
+                    onclick="this.closest('dialog').close()">Supprimer</button>
+          </footer>
+        </div>
+      </dialog>
+    </th:block>
+  </div>
+</div>
+
+<div th:fragment="monthView(month, colourByCoach, monthParam, scope)" class="card">
+  <div class="p-3 md:p-4">
+    <div class="flex items-center justify-between mb-4">
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Mois précédent"
+              th:attr="hx-vals=|{&quot;${monthParam}&quot;: &quot;${month.previous()}&quot;}|" hx-get="/app/calendar" hx-include="#calendar-state"
+              hx-target="#calendar-body" hx-swap="outerHTML" th:utext="${icons.svg('chevron-left', 'h-4 w-4')}"></button>
+      <h2 class="font-display text-xl md:text-2xl leading-7 md:leading-8 capitalize" th:text="${month.title()}"></h2>
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Mois suivant"
+              th:attr="hx-vals=|{&quot;${monthParam}&quot;: &quot;${month.next()}&quot;}|" hx-get="/app/calendar" hx-include="#calendar-state"
+              hx-target="#calendar-body" hx-swap="outerHTML" th:utext="${icons.svg('chevron-right', 'h-4 w-4')}"></button>
+    </div>
+    <div class="grid grid-cols-7 gap-1 mb-1">
+      <div th:each="d : ${ {'Lun','Mar','Mer','Jeu','Ven','Sam','Dim'} }" class="text-center text-[10px] uppercase tracking-widest text-muted-foreground py-1" th:text="${d}"></div>
+    </div>
+    <div class="grid grid-cols-7 gap-1">
+      <button th:each="c : ${month.cells()}" type="button"
+              class="aspect-square min-h-[60px] md:min-h-[80px] p-1 md:p-1.5 rounded-lg border border-border/50 transition-colors text-left hover:bg-muted/50 cursor-pointer"
+              th:classappend="${(c.inMonth() ? '' : 'opacity-40 ') + (c.today() ? 'border-primary bg-primary/5' : '')}"
+              th:attr="hx-get=@{/app/calendar/day(date=${c.iso()}, scope=${scope})}" hx-include="#calendar-state"
+              hx-target="#calendar-dialog-slot" hx-swap="innerHTML">
+        <div class="text-xs md:text-sm font-medium" th:classappend="${c.today()} ? 'text-primary font-display'" th:text="${c.day()}"></div>
+        <div class="mt-1 space-y-0.5">
+          <div th:each="e : ${c.events()}" class="flex items-center gap-1 text-[9px] md:text-[10px] rounded-sm px-0.5 md:px-1 py-0.5 truncate"
+               th:classappend="${colourByCoach and e.coachId().isPresent()} ? ${e.coachBadge()} : 'bg-muted'"
+               th:title="|${e.startTime()} ${e.title()}|">
+            <span th:unless="${colourByCoach}" th:class="|h-1 w-1 md:h-1.5 md:w-1.5 rounded-full shrink-0 ${e.type().dot()}|"></span>
+            <span class="truncate"><span class="hidden md:inline" th:text="|${e.startTime()} |"></span><th:block th:text="${e.title()}"></th:block></span>
+          </div>
+          <div th:if="${c.more() > 0}" class="text-[9px] text-muted-foreground" th:text="|+${c.more()}|"></div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<dialog th:fragment="dayDialog" id="calendar-day" class="dialog" aria-labelledby="calendar-day-title" x-data x-init="$el.showModal()">
+  <div class="max-w-lg max-h-[90vh] overflow-y-auto">
+    <header><h2 id="calendar-day-title" class="font-display text-2xl leading-8 capitalize" th:text="${dateTitle}"></h2></header>
+    <div class="space-y-3">
+      <p th:if="${dayEvents.isEmpty()}" class="text-sm text-muted-foreground py-4 text-center">Aucun événement ce jour.</p>
+      <th:block th:each="e : ${dayEvents}"><div th:replace="~{::eventCard(${e}, ${showCoach})}"></div></th:block>
+      <button type="button" class="btn w-full gap-2" data-variant="outline"
+              th:attr="hx-get=@{/app/calendar/new(start=|${date}T10:00|)}" hx-target="#calendar-dialog-slot" hx-swap="innerHTML">
+        <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter un événement
+      </button>
+    </div>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </div>
+</dialog>
+
+<dialog th:fragment="eventDialog" id="event-form" class="dialog" aria-labelledby="event-form-title" x-data x-init="$el.showModal()">
+  <form class="max-h-[90vh] overflow-y-auto" hx-post="/app/calendar/events" hx-include="#calendar-state" hx-target="#calendar-body"
+        hx-swap="outerHTML" hx-indicator="find button[type=submit]">
+    <header><h2 id="event-form-title" class="font-display text-2xl leading-8">Nouvel événement</h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="event-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="event-title" type="text" name="title">
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="event-type">Type</label>
+        <select class="select" id="event-type" name="type">
+          <option value="one_on_one" selected>Suivi individuel</option>
+          <option value="admin_task">Premier RDV</option>
+          <option value="call">Appel</option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="event-start">Date &amp; heure<span class="text-destructive ml-0.5">*</span></label>
+        <div th:replace="~{fragments/ui/components :: datePicker('event-start', 'startsAt', ${start}, 'Date & heure', true, null)}"></div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="event-member">Membre lié (optionnel)</label>
+        <select class="select" id="event-member" name="memberId">
+          <option value="none" selected>Aucun</option>
+          <option th:each="m : ${memberOptions}" th:value="${m.id()}" th:text="${m.label()}"></option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="event-description">Description (optionnel)</label>
+        <textarea class="textarea" id="event-description" name="description" rows="2"></textarea>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter('Créer')}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+</body>
+</html>

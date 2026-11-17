@@ -1,9 +1,214 @@
 <!doctype html>
 <html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout/app}">
+<head><title>Tableau de bord — MT Pilates</title></head>
 <body>
 <th:block layout:fragment="page">
-  <!--/* Tableaux de bord membre et staff : module M9. */-->
+  <!--/* DashboardRouter : tableau de bord staff ou membre selon les capacités. */-->
+  <th:block th:if="${staffDashboard != null}"><div th:replace="~{::staffDashboard}"></div></th:block>
+  <th:block th:if="${memberDashboard != null}"><div th:replace="~{::memberDashboard}"></div></th:block>
 </th:block>
+
+<div th:fragment="staffDashboard" th:with="d=${staffDashboard}">
+  <div class="animate-fade-in">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Tableau de bord', |Bonjour ${d.firstName()}|, 'Voici votre journée et vos rendez-vous à venir.', null, null, null, null)}"></div>
+  </div>
+  <div class="container py-8 space-y-8">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div th:replace="~{fragments/ui/components :: statCard('Membres actifs', ${d.stats().active()}, null, 'users', 'primary')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('En pause', ${d.stats().paused()}, null, 'users', 'sage')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Archivés', ${d.stats().archived()}, null, 'users', 'secondary')}"></div>
+      <div th:replace="~{fragments/ui/components :: statCard('Total', ${d.stats().total()}, null, 'users', 'primary')}"></div>
+    </div>
+
+    <div class="card">
+      <header class="flex flex-row items-center justify-between">
+        <h3 class="font-display text-2xl leading-8">Agenda du jour</h3>
+        <span class="badge rounded-full" data-variant="secondary" th:text="${d.todayLabel()}"></span>
+      </header>
+      <section class="space-y-3">
+        <p th:if="${d.today().isEmpty()}" class="text-sm text-muted-foreground" th:text="#{dashboard.today.empty}"></p>
+        <div th:each="e : ${d.today()}" class="flex items-center gap-4 p-3 rounded-xl bg-muted/40">
+          <div class="text-center w-16 shrink-0">
+            <div class="font-display text-lg leading-none" th:text="${e.startTime()}"></div>
+            <div class="text-xs text-muted-foreground mt-1" th:text="${e.endTime()}"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="badge rounded-full text-xs" data-variant="secondary" th:text="${labels.eventType(e.type().code())}"></span>
+              <th:block th:if="${e.privateEvent()}" th:utext="${icons.svg('lock', 'h-3 w-3 text-muted-foreground')}"></th:block>
+            </div>
+            <div class="font-medium mt-1 truncate" th:text="${e.title()}"></div>
+            <div class="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+              <span th:if="${e.location().isPresent()}" class="flex items-center gap-1">
+                <th:block th:utext="${icons.svg('map-pin', 'h-3 w-3')}"></th:block><th:block th:text="${e.location().get()}"></th:block>
+              </span>
+              <span th:if="${e.visio()}" class="flex items-center gap-1"><th:block th:utext="${icons.svg('video', 'h-3 w-3')}"></th:block>Visio</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card">
+        <header class="flex flex-row items-center justify-between">
+          <h3 class="font-display text-xl leading-7 flex items-center gap-2">
+            <th:block th:utext="${icons.svg('phone', 'h-4 w-4 text-primary')}"></th:block> Prochains RDV individuels
+          </h3>
+          <a href="/app/calendar" class="btn" data-variant="ghost" data-size="sm">Voir tout</a>
+        </header>
+        <section class="space-y-3">
+          <p th:if="${d.oneOnOnes().isEmpty()}" class="text-sm text-muted-foreground">Aucun RDV à venir.</p>
+          <div th:each="e : ${d.oneOnOnes()}" class="flex items-center gap-4 p-3 rounded-xl bg-muted/40">
+            <div class="h-12 w-12 rounded-full bg-primary/10 flex flex-col items-center justify-center text-primary">
+              <span class="text-[10px] uppercase" th:text="${e.month()}"></span>
+              <span class="font-display text-lg leading-none" th:text="${e.day()}"></span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium truncate" th:text="${e.title()}"></div>
+              <div class="text-xs text-muted-foreground" th:text="${e.when()}"></div>
+            </div>
+            <a th:if="${e.memberId().isPresent()}" class="btn" data-variant="ghost" data-size="sm"
+               th:href="@{/app/coach/members/{id}(id=${e.memberId().get()})}">Fiche</a>
+          </div>
+        </section>
+      </div>
+      <div class="card">
+        <header class="flex flex-row items-center justify-between">
+          <h3 class="font-display text-xl leading-7 flex items-center gap-2">
+            <th:block th:utext="${icons.svg('clipboard-list', 'h-4 w-4 text-primary')}"></th:block> Tâches admin à venir
+          </h3>
+          <a href="/app/calendar" class="btn" data-variant="ghost" data-size="sm">Calendrier</a>
+        </header>
+        <section class="space-y-3">
+          <p th:if="${d.adminTasks().isEmpty()}" class="text-sm text-muted-foreground">Aucune tâche planifiée.</p>
+          <div th:each="e : ${d.adminTasks()}" class="flex items-center gap-3 p-3 rounded-xl bg-muted/40">
+            <div class="h-10 w-10 rounded-lg bg-secondary/15 flex items-center justify-center text-secondary"
+                 th:utext="${icons.svg('clipboard-list', 'h-4 w-4')}"></div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium truncate" th:text="${e.title()}"></div>
+              <div class="text-xs text-muted-foreground" th:text="${e.when()}"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="card">
+      <header><h3 class="font-display text-xl leading-7 flex items-center gap-2">
+        <th:block th:utext="${icons.svg('cake', 'h-4 w-4 text-primary')}"></th:block> Anniversaires de la semaine
+      </h3></header>
+      <section class="space-y-2">
+        <p th:if="${d.birthdays().isEmpty()}" class="text-sm text-muted-foreground">Aucun anniversaire dans les 7 prochains jours.</p>
+        <div th:each="b : ${d.birthdays()}" class="flex items-center gap-3 p-3 rounded-xl bg-muted/40">
+          <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center" th:utext="${icons.svg('cake', 'h-4 w-4 text-primary')}"></div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium truncate" th:text="${b.name()}"></div>
+            <div class="text-xs text-muted-foreground" th:text="${b.dateLabel()}"></div>
+          </div>
+          <a th:if="${b.whatsapp().isPresent()}" class="btn" data-variant="outline" data-size="sm" th:href="${b.whatsapp().get()}"
+             target="_blank" rel="noreferrer">
+            <th:block th:utext="${icons.svg('message-circle', 'h-4 w-4')}"></th:block> WhatsApp
+          </a>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div th:fragment="memberDashboard" class="bg-background min-h-full" th:with="d=${memberDashboard}">
+  <div class="container pt-6 md:pt-10 pb-4 md:pb-6 animate-fade-in">
+    <div class="flex items-center gap-2 text-primary text-xs uppercase tracking-widest">
+      <img src="/images/logo-icon.png" alt="" class="h-3.5 w-3.5 object-contain">
+      <span>Mon programme</span>
+    </div>
+    <h1 class="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl mt-3 leading-tight sm:leading-10 md:leading-none">
+      Bonjour, <span class="italic text-primary" th:text="${d.firstName().orElse('ravi de vous revoir')}"></span>.
+    </h1>
+    <p class="text-muted-foreground italic mt-2 md:mt-3 text-base md:text-lg md:leading-7"
+       th:text="${d.coach().isPresent() ? 'Ton programme préparé par ' + d.coach().get().firstName() + '. Une séance à la fois, à ton rythme.' : 'Une séance à la fois, à ton rythme.'}"></p>
+  </div>
+  <div>
+    <div class="container grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+      <div class="card bg-accent/40 border-accent">
+        <section class="pt-5 md:pt-6 pb-4 md:pb-5 relative overflow-hidden">
+          <div class="text-[10px] uppercase tracking-widest text-primary font-medium">Série en cours</div>
+          <div class="font-display text-4xl md:text-5xl md:leading-none text-primary mt-2" th:text="|${d.streakDays()} jour${d.streakDays() > 1 ? 's' : ''}|"></div>
+          <div class="text-xs text-primary/80 italic mt-1" th:text="${d.streakDays() == 0 ? #messages.msg('dashboard.streak.zero') : 'Continue comme ça ♡'}"></div>
+          <th:block th:utext="${icons.svg('flame', 'absolute right-4 top-4 h-8 w-8 text-primary/30')}"></th:block>
+        </section>
+      </div>
+      <div class="card">
+        <section class="pt-5 md:pt-6 pb-4 md:pb-5">
+          <div class="text-[10px] uppercase tracking-widest text-muted-foreground">Accomplies</div>
+          <div class="font-display text-4xl md:text-5xl md:leading-none mt-2">
+            <th:block th:text="${d.doneThisMonth()}"></th:block>
+            <span class="text-muted-foreground/50 text-2xl md:text-3xl" th:text="|/ ${d.monthlyTarget()}|"></span>
+          </div>
+          <div class="text-xs text-muted-foreground italic mt-1">séances ce mois-ci</div>
+        </section>
+      </div>
+      <div class="card sm:col-span-2 md:col-span-1">
+        <section class="pt-5 md:pt-6 pb-4 md:pb-5 flex items-center gap-4">
+          <th:block th:replace="~{fragments/ui/components :: userAvatar(${d.coach().isPresent() ? d.coach().get().avatarUrl().orElse(null) : null}, ${d.coach().isPresent() ? d.coach().get().initial() : 'M'}, 'lg')}"></th:block>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-muted-foreground">Ton coach</div>
+            <div class="font-display text-xl md:text-2xl md:leading-8 mt-1" th:text="${d.coach().isPresent() ? d.coach().get().fullName() : 'À assigner'}"></div>
+            <div class="text-xs text-muted-foreground italic">Suivi personnalisé</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="container mt-6 md:mt-8">
+      <div class="flex items-center justify-between mb-3 md:mb-4">
+        <h2 class="font-display text-xl md:text-2xl md:leading-8 italic" th:text="|Semaine du ${d.weekLabel()}|"></h2>
+        <a href="/app/planning" class="btn" data-variant="ghost" data-size="sm">Voir tout</a>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-3">
+        <div th:each="day : ${d.week()}" class="card" th:classappend="${day.today()} ? 'bg-foreground text-background border-foreground'">
+          <div class="p-2.5 md:p-3 min-h-[100px] md:min-h-[140px] flex flex-col">
+            <div class="text-[10px] uppercase tracking-widest" th:classappend="${day.today()} ? 'text-background/70' : 'text-muted-foreground'"
+                 th:text="|${day.weekday()}.|"></div>
+            <div class="font-display text-2xl md:text-3xl md:leading-9 mt-0.5" th:text="${day.day()}"></div>
+            <div th:if="${day.events().isEmpty()}" class="text-xs italic mt-2" th:classappend="${day.today()} ? 'text-background/60' : 'text-muted-foreground'">Repos</div>
+            <div th:unless="${day.events().isEmpty()}" class="space-y-1.5 mt-2">
+              <div th:each="e, it : ${day.events()}" th:if="${it.index < 2}" class="rounded-lg p-1.5 text-[11px] leading-tight"
+                   th:classappend="${day.today()} ? 'bg-background/10' : 'bg-sage/15'">
+                <div class="flex items-center gap-1 opacity-70">
+                  <th:block th:utext="${icons.svg('clock', 'h-2.5 w-2.5')}"></th:block><th:block th:text="${e.time()}"></th:block>
+                </div>
+                <div class="font-medium truncate" th:text="${e.title()}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container mt-6 md:mt-8">
+      <div th:replace="~{fragments/habit/my-habits :: card}"></div>
+    </div>
+
+    <div class="container mt-6 md:mt-8 mb-8 md:mb-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+      <div th:replace="~{::quickLink('/app/videos', 'circle-play', 'Bibliothèque', 'Découvre les séances proposées')}"></div>
+      <div th:replace="~{::quickLink('/app/nutrition', 'apple', 'Nutrition', ${d.hasNutrition() ? 'Consulter ton plan actif' : 'En attente de ton coach'})}"></div>
+      <div th:replace="~{::quickLink('/app/profile', 'user', 'Ma fiche', 'Objectifs, mensurations, profil')}"></div>
+    </div>
+  </div>
+</div>
+
+<a th:fragment="quickLink(href, icon, title, subtitle)" th:href="${href}">
+  <div class="card hover:shadow-elevated transition-shadow h-full">
+    <section class="pt-5 md:pt-6 pb-4 md:pb-5 flex items-center gap-4">
+      <div class="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center" th:utext="${icons.svg(icon, 'h-5 w-5')}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="font-display text-lg md:text-xl md:leading-7" th:text="${title}"></div>
+        <div class="text-xs text-muted-foreground mt-0.5" th:text="${subtitle}"></div>
+      </div>
+    </section>
+  </div>
+</a>
 </body>
 </html>
