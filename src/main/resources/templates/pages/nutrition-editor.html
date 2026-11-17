@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Plan nutritionnel — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* NutritionEditor : 7 jours × 4 repas ; l'état vit dans Alpine et part en JSON à l'enregistrement. */-->
+  <div th:data-state="${stateJson}" th:data-recipes="${recipesJson}" th:data-member="${memberId}"
+       x-data="nutritionEditor(JSON.parse($el.dataset.state), JSON.parse($el.dataset.recipes), $el.dataset.member)">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Plan nutritionnel', |Plan pour ${memberName}|,
+         'Structure le plan par jour et par repas. Importe des recettes pour aller plus vite.', ~{::editorActions}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <div th:fragment="editorActions" class="flex gap-2">
+        <a class="btn" data-variant="ghost" th:href="@{/app/coach/members/{id}(id=${memberId})}">
+          <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4')}"></th:block> Fiche
+        </a>
+        <button type="button" class="btn" data-variant="hero" @click="save()" :disabled="saving"
+                x-text="saving ? 'Enregistrement…' : 'Enregistrer'">Enregistrer</button>
+      </div>
+    </th:block>
+
+    <div class="container py-8 space-y-6">
+      <div class="card">
+        <header><h2 class="font-display text-lg">Informations</h2></header>
+        <section class="space-y-4">
+          <div class="space-y-2">
+            <label class="label" for="plan-title">Titre</label>
+            <input class="input" id="plan-title" type="text" x-model="title">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="plan-description">Description / notes</label>
+            <textarea class="textarea" id="plan-description" rows="2" placeholder="Objectifs, restrictions, conseils…" x-model="description"></textarea>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid gap-4">
+        <div th:each="d : ${days}" class="card" th:data-day="${d.key}" x-data="{ day: $el.dataset.day }">
+          <header><h2 class="font-display text-xl" th:text="${d.value}"></h2></header>
+          <section class="space-y-4">
+            <div th:each="m : ${ {'breakfast', 'lunch', 'snack', 'dinner'} }" class="space-y-2" th:data-meal="${m}" x-data="{ meal: $el.dataset.meal }">
+              <div class="flex items-center justify-between">
+                <label class="label text-sm leading-5"
+                       th:text="${m == 'breakfast'} ? 'Petit-déj' : (${m == 'lunch'} ? 'Déjeuner' : (${m == 'snack'} ? 'Collation' : 'Dîner'))"></label>
+                <div class="flex gap-1">
+                  <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="openPicker(day, meal)">
+                    <th:block th:utext="${icons.svg('book-open', 'h-3 w-3')}"></th:block> Recette
+                  </button>
+                  <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="addItem(day, meal)">
+                    <th:block th:utext="${icons.svg('plus', 'h-3 w-3')}"></th:block> Ajouter
+                  </button>
+                </div>
+              </div>
+              <p x-show="items(day, meal).length === 0" class="text-xs text-muted-foreground italic">Libre</p>
+              <div class="space-y-1.5">
+                <template x-for="(item, idx) in items(day, meal)" :key="idx">
+                  <div class="grid grid-cols-12 gap-1">
+                    <input class="input col-span-5 text-xs h-8" type="text" placeholder="Aliment" :value="item.name"
+                           @input="updateItem(day, meal, idx, { name: $event.target.value })">
+                    <input class="input col-span-2 text-xs h-8" type="text" placeholder="Qt." :value="item.quantity"
+                           @input="updateItem(day, meal, idx, { quantity: $event.target.value })">
+                    <select class="select col-span-3 text-xs h-8 py-0" :value="item.unit" aria-label="Unité"
+                            @change="updateItem(day, meal, idx, { unit: $event.target.value })">
+                      <option th:each="u : ${units}" th:value="${u}" th:text="${u}"></option>
+                    </select>
+                    <div class="col-span-2 flex items-center gap-1">
+                      <span x-show="item.fromRecipe" class="badge text-[9px] leading-normal px-1 py-0 truncate max-w-full" data-variant="secondary"
+                            x-text="item.fromRecipe"></span>
+                      <button type="button" class="btn h-7 w-7 p-0 text-destructive ml-auto" data-variant="ghost" data-size="sm"
+                              aria-label="Retirer" @click="removeItem(day, meal, idx)" th:utext="${icons.svg('trash-2', 'h-3 w-3')}"></button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <dialog class="dialog" x-ref="picker" aria-labelledby="recipe-picker-title" @close="pickerOpen = false">
+      <div class="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <header><h2 id="recipe-picker-title" class="font-display text-xl leading-7">Choisir une recette</h2></header>
+        <div class="relative">
+          <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+          <input class="input pl-9" type="text" placeholder="Rechercher…" x-model="recipeSearch">
+        </div>
+        <div class="space-y-2 mt-2">
+          <template x-if="filteredRecipes.length === 0"><p class="text-sm text-muted-foreground">Aucune recette trouvée.</p></template>
+          <template x-for="r in filteredRecipes" :key="r.id">
+            <button type="button" class="w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors" @click="copyRecipe(r)">
+              <div class="font-medium" x-text="r.title"></div>
+              <div x-show="r.description" class="text-xs text-muted-foreground line-clamp-1" x-text="r.description"></div>
+              <div class="text-xs text-muted-foreground mt-1" x-text="`${r.ingredients.length} ingrédient(s)`"></div>
+            </button>
+          </template>
+        </div>
+        <footer>
+          <button type="button" class="btn" data-variant="ghost" @click="$refs.picker.close()">Annuler</button>
+        </footer>
+        <button type="button" class="dialog-close" aria-label="Fermer" @click="$refs.picker.close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+      </div>
+    </dialog>
+  </div>
+</th:block>
+</body>
+</html>

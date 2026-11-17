@@ -535,6 +535,51 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // NutritionEditor : aliments par jour et par repas, import des ingrédients d'une recette.
+  Alpine.data("nutritionEditor", (state, recipes, memberId) => ({
+    planId: state.planId,
+    title: state.title,
+    description: state.description,
+    meals: state.meals,
+    recipes,
+    recipeSearch: "",
+    pickerTarget: null,
+    pickerOpen: false,
+    saving: false,
+    get filteredRecipes() {
+      const q = this.recipeSearch.toLowerCase().trim();
+      return q ? this.recipes.filter((r) => r.title.toLowerCase().includes(q)) : this.recipes;
+    },
+    // Un repas en texte libre faisait planter l'éditeur d'origine : il est affiché vide (« Libre »).
+    items(day, meal) { const v = this.meals[day]?.[meal]; return Array.isArray(v) ? v : []; },
+    setItems(day, meal, items) { this.meals = { ...this.meals, [day]: { ...this.meals[day], [meal]: items } }; },
+    addItem(day, meal) { this.setItems(day, meal, [...this.items(day, meal), { name: "", quantity: "", unit: "g" }]); },
+    updateItem(day, meal, idx, patch) {
+      this.setItems(day, meal, this.items(day, meal).map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    },
+    removeItem(day, meal, idx) { this.setItems(day, meal, this.items(day, meal).filter((_, i) => i !== idx)); },
+    openPicker(day, meal) {
+      this.pickerTarget = { day, meal };
+      this.pickerOpen = true;
+      this.$refs.picker.showModal();
+    },
+    copyRecipe(recipe) {
+      if (!this.pickerTarget) return;
+      const { day, meal } = this.pickerTarget;
+      const added = recipe.ingredients.map((ing) => ({ name: ing.name, quantity: ing.quantity, unit: ing.unit, fromRecipe: recipe.title }));
+      this.setItems(day, meal, [...this.items(day, meal), ...added]);
+      this.$refs.picker.close();
+    },
+    async save() {
+      this.saving = true;
+      const result = await this.$postJson(`/app/coach/members/${memberId}/nutrition`, {
+        planId: this.planId, title: this.title, description: this.description || null, meals: this.meals,
+      });
+      if (result?.id) this.planId = result.id;
+      this.saving = false;
+    },
+  }));
+
   // RecipeLibrary : onglet, recherche et filtres (l'allergène exclut les recettes qui le contiennent).
   Alpine.data("recipeFilters", () => ({
     tab: "all",

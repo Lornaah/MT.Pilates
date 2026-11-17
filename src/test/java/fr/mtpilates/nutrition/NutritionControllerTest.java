@@ -2,6 +2,7 @@ package fr.mtpilates.nutrition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -256,6 +257,64 @@ class NutritionControllerTest {
         mvc.perform(post("/app/coach/nutrition/plans").contentType("application/json")
                         .content("{\"memberId\":\"%s\",\"title\":\"x\",\"meals\":{\"monday\":[]}}".formatted(member.id()))
                         .header("HX-Request", "true").with(coach.login()).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coachEditsTheActivePlanAndTheMemberSeesIt() throws Exception {
+        final TestUsers.Account coach = users.create("coach", AppRole.COACH);
+        final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
+        jdbc.update("UPDATE profiles SET coach_id = ?, onboarding_completed_at = now() WHERE id = ?", coach.id(), member.id());
+        final String url = "/app/coach/members/" + member.id() + "/nutrition";
+
+        mvc.perform(get(url).with(coach.login())).andExpect(content().string(containsString("Plan nutritionnel")));
+        final String body = "{\"planId\":null,\"title\":\"Mon plan\",\"description\":\"Boire de l'eau\",\"meals\":"
+                + "{\"monday\":{\"breakfast\":[{\"name\":\"Pomme\",\"quantity\":\"1\",\"unit\":\"pièce(s)\",\"fromRecipe\":\"Compote\"}],"
+                + "\"lunch\":[],\"snack\":[],\"dinner\":[]}}}";
+        final String created = mvc.perform(post(url).contentType("application/json").content(body).header("HX-Request", "true")
+                        .with(coach.login()).with(csrf()))
+                .andExpect(header().string("HX-Trigger", containsString("Plan enregistr\\u00E9")))
+                .andReturn().getResponse().getContentAsString();
+        final UUID id = jdbc.queryForObject("SELECT id FROM nutrition_plans WHERE member_id = ?", UUID.class, member.id());
+        assertThat(created).contains(id.toString());
+
+        mvc.perform(post(url).contentType("application/json").content(body.replace("\"planId\":null", "\"planId\":\"" + id + "\"")
+                        .replace("Mon plan", "Plan revu")).header("HX-Request", "true").with(coach.login()).with(csrf()))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT count(*) || '|' || max(title) FROM nutrition_plans WHERE member_id = ?",
+                String.class, member.id())).isEqualTo("1|Plan revu");
+
+        mvc.perform(get("/app/nutrition").with(member.login()))
+                .andExpect(content().string(containsString("Plan revu")))
+                .andExpect(content().string(containsString("Boire de l&#39;eau")))
+                .andExpect(content().string(containsString(">1</span>")))
+                .andExpect(content().string(containsString("Compote")))
+                .andExpect(content().string(containsString("Repos / libre.")));
+    }
+
+    @Test
+    void memberSeesGeneratedMealsWithoutMacrosWhenHidden() throws Exception {
+        final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
+        jdbc.update("UPDATE profiles SET onboarding_completed_at = now() WHERE id = ?", member.id());
+        jdbc.update("INSERT INTO nutrition_plans (member_id, title, meals, is_active, kcal_target, hide_macros_from_member, shopping_list) "
+                + "VALUES (?, 'Généré', ?::jsonb, true, 1800, true, ?::jsonb)", member.id(),
+                "{\"monday\":[{\"recipe_id\":\"x\",\"recipe_title\":\"Bowl\",\"meal_type\":\"lunch\",\"servings\":1.5,\"calories\":780}]}",
+                "[{\"aisle\":\"autre\",\"items\":[{\"name\":\"Quinoa\",\"qty\":120.5,\"unit\":\"g\"}]}]");
+
+        mvc.perform(get("/app/nutrition").with(member.login()))
+                .andExpect(content().string(containsString("× 1.5 portions")))
+                .andExpect(content().string(not(containsString("780 kcal"))))
+                .andExpect(content().string(not(containsString("Objectifs journaliers"))))
+                .andExpect(content().string(containsString("120.5 g")));
+    }
+
+    @Test
+    void coachCannotEditThePlanOfAMemberTheyDoNotManage() throws Exception {
+        final TestUsers.Account coach = users.create("coach", AppRole.COACH);
+        final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
+
+        mvc.perform(post("/app/coach/members/" + member.id() + "/nutrition").contentType("application/json")
+                        .content("{\"title\":\"x\",\"meals\":{}}").header("HX-Request", "true").with(coach.login()).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

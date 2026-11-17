@@ -63,6 +63,12 @@ public class NutritionPlan {
     @Column(name = "source_template_id")
     private UUID sourceTemplateId;
 
+    @Column(name = "pdf_url")
+    private String pdfUrl;
+
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private Instant createdAt;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -101,6 +107,49 @@ public class NutritionPlan {
         plan.hideMacrosFromMember = p.hideMacros();
         plan.updatedAt = now;
         return plan;
+    }
+
+    /** Plan saisi à la main par le coach (NutritionEditor) : nouvelle ligne active. */
+    public static NutritionPlan edited(final UUID memberId) {
+        final NutritionPlan plan = new NutritionPlan();
+        plan.id = UUID.randomUUID();
+        plan.memberId = memberId;
+        return plan;
+    }
+
+    /** upsert de l'original : titre, description, repas, coach et statut actif réécrits. */
+    public void edit(final UUID coach, final String newTitle, final String newDescription, final Map<String, Object> newMeals,
+                     final Instant now) {
+        this.coachId = coach;
+        this.title = newTitle;
+        this.description = newDescription;
+        this.meals = new LinkedHashMap<>(newMeals);
+        this.active = true;
+        this.updatedAt = now;
+    }
+
+    public Optional<String> getDescription() {
+        return Optional.ofNullable(description);
+    }
+
+    public Map<String, Object> getMeals() {
+        return meals == null ? Map.of() : java.util.Collections.unmodifiableMap(meals);
+    }
+
+    public List<Map<String, Object>> getShoppingList() {
+        return shoppingList == null ? List.of() : List.copyOf(shoppingList);
+    }
+
+    public Optional<Map<String, Object>> getMacrosTarget() {
+        return Optional.ofNullable(macrosTarget);
+    }
+
+    public boolean isHideMacrosFromMember() {
+        return hideMacrosFromMember;
+    }
+
+    public Optional<String> getPdfUrl() {
+        return Optional.ofNullable(pdfUrl);
     }
 
     public UUID getId() {

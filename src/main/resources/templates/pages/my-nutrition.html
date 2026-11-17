@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Nutrition — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* MyNutrition : plan actif du membre, au format généré (repas planifiés) ou saisi à la main (aliments par repas). */-->
+  <div th:replace="~{fragments/ui/components :: pageHeader('Nutrition', 'Ton plan nutritionnel',
+       ${plan.isPresent()} ? ${plan.get().title()} : 'Aucun plan actif pour le moment.',
+       ${plan.isPresent() and plan.get().pdfUrl().isPresent()} ? ~{::pdfButton} : null, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <a th:fragment="pdfButton" class="btn" data-variant="outline" th:href="${plan.get().pdfUrl().get()}" target="_blank" rel="noreferrer">
+      <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block> Télécharger le PDF
+    </a>
+  </th:block>
+
+  <div class="container py-8 space-y-6">
+    <th:block th:if="${plan.isEmpty()}">
+      <div th:replace="~{fragments/ui/components :: emptyState('apple', null, #{nutrition.member.empty}, null)}"></div>
+    </th:block>
+
+    <th:block th:if="${plan.isPresent()}" th:with="p=${plan.get()}">
+      <div th:if="${p.description().isPresent()}" class="card">
+        <section class="pt-6 text-sm text-muted-foreground italic whitespace-pre-wrap" th:text="${p.description().get()}"></section>
+      </div>
+
+      <div th:if="${p.showTargets()}" class="card">
+        <header class="pb-3">
+          <h2 class="font-display text-lg flex items-center gap-2">
+            <th:block th:utext="${icons.svg('flame', 'h-5 w-5 text-primary')}"></th:block> Objectifs journaliers
+          </h2>
+        </header>
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div th:replace="~{::stat('Calories', ${p.kcal()}, 'kcal')}"></div>
+          <div th:replace="~{::stat('Protéines', ${p.protein()}, 'g')}"></div>
+          <div th:replace="~{::stat('Glucides', ${p.carbs()}, 'g')}"></div>
+          <div th:replace="~{::stat('Lipides', ${p.fat()}, 'g')}"></div>
+        </section>
+      </div>
+
+      <div class="grid gap-4">
+        <div th:each="d : ${p.days()}" class="card">
+          <header class="pb-3"><h2 class="font-display text-xl" th:text="${d.label()}"></h2></header>
+          <section>
+            <p th:unless="${d.hasContent()}" class="text-xs text-muted-foreground">Repos / libre.</p>
+            <div th:if="${d.hasContent() and p.generated()}" class="grid sm:grid-cols-2 gap-3">
+              <div th:each="m : ${d.planned()}" class="rounded-xl bg-muted/40 p-3 flex gap-3">
+                <div class="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0"
+                     th:utext="${icons.svg(m.icon(), 'h-4 w-4')}"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase tracking-widest text-muted-foreground" th:text="${m.label()}"></div>
+                  <div th:if="${m.free()}" class="text-sm italic text-muted-foreground mt-1">Repas libre</div>
+                  <th:block th:unless="${m.free()}">
+                    <div class="text-sm font-medium mt-0.5 truncate" th:text="${m.title()}"></div>
+                    <div class="text-xs text-muted-foreground mt-0.5" th:text="${m.servings()}"></div>
+                    <div th:if="${m.showMacros()}" class="flex flex-wrap gap-1 mt-1.5">
+                      <span th:if="${m.kcal().isPresent()}" class="badge text-[10px] leading-normal" data-variant="secondary" th:text="|${m.kcal().get()} kcal|"></span>
+                      <span th:if="${m.protein().isPresent()}" class="badge text-[10px] leading-normal" data-variant="outline" th:text="|P ${m.protein().get()}g|"></span>
+                      <span th:if="${m.carbs().isPresent()}" class="badge text-[10px] leading-normal" data-variant="outline" th:text="|G ${m.carbs().get()}g|"></span>
+                      <span th:if="${m.fat().isPresent()}" class="badge text-[10px] leading-normal" data-variant="outline" th:text="|L ${m.fat().get()}g|"></span>
+                    </div>
+                  </th:block>
+                </div>
+              </div>
+            </div>
+            <div th:if="${d.hasContent() and !p.generated()}" class="grid sm:grid-cols-2 gap-3">
+              <div th:each="b : ${d.legacy()}" class="rounded-xl bg-muted/40 p-3 flex gap-3">
+                <div class="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0"
+                     th:utext="${icons.svg(b.icon(), 'h-4 w-4')}"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] uppercase tracking-widest text-muted-foreground" th:text="${b.label()}"></div>
+                  <div th:if="${b.text().isPresent()}" class="text-sm whitespace-pre-wrap mt-0.5" th:text="${b.text().get()}"></div>
+                  <span th:if="${b.text().isEmpty() and b.items().isEmpty()}" class="text-sm text-muted-foreground italic">—</span>
+                  <ul th:unless="${b.items().isEmpty()}" class="space-y-1 mt-1">
+                    <li th:each="it : ${b.items()}" class="text-sm flex items-baseline gap-1">
+                      <span th:if="${it.quantity().isPresent()}" class="text-foreground font-medium" th:text="${it.quantity().get()}"></span>
+                      <span th:text="${it.name()}"></span>
+                      <span th:if="${it.fromRecipe().isPresent()}" class="badge text-[10px] leading-5 ml-1" data-variant="secondary" th:text="${it.fromRecipe().get()}"></span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div th:unless="${p.shopping().isEmpty()}" class="card">
+        <header class="pb-3 flex-row items-center justify-between">
+          <h2 class="font-display text-lg flex items-center gap-2">
+            <th:block th:utext="${icons.svg('shopping-basket', 'h-5 w-5 text-primary')}"></th:block> Liste de courses
+          </h2>
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" onclick="window.print()">Imprimer</button>
+        </header>
+        <section class="grid sm:grid-cols-2 gap-6">
+          <div th:each="g : ${p.shopping()}">
+            <div class="text-[10px] uppercase tracking-widest text-muted-foreground mb-2" th:text="${g.aisle()}"></div>
+            <ul class="space-y-1">
+              <li th:each="it : ${g.items()}" class="text-sm flex justify-between">
+                <span th:text="${it.name()}"></span>
+                <span class="text-muted-foreground" th:text="${it.quantity()}"></span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </th:block>
+  </div>
+</th:block>
+
+<div th:fragment="stat(label, value, unit)" class="rounded-xl bg-muted/40 p-3">
+  <div class="text-[10px] uppercase tracking-widest text-muted-foreground" th:text="${label}"></div>
+  <div class="mt-1 text-xl font-semibold"><th:block th:text="${value}"></th:block><span th:if="${value != '—'}"
+       class="text-xs font-normal text-muted-foreground ml-1" th:text="${unit}"></span></div>
+</div>
+</body>
+</html>
