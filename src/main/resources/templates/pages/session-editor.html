@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Séance — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    SessionEditor : l'état d'édition (blocs, exercices, attributs) vit dans Alpine comme dans l'original ;
+    « Enregistrer » envoie le tout en JSON, validé et enregistré d'un bloc par le serveur.
+  */-->
+  <form id="session-editor" hx-post="/app/coach/sessions/save" hx-swap="none" hx-indicator="#session-save"
+        th:data-state="${stateJson}" th:data-exercises="${exercisesJson}" th:data-types="${attributeTypesJson}"
+        x-data="sessionEditor(JSON.parse($el.dataset.state), JSON.parse($el.dataset.exercises), JSON.parse($el.dataset.types))"
+        onsubmit="return false">
+    <input type="hidden" name="id" th:value="${sessionId}">
+    <input type="hidden" name="payload" :value="JSON.stringify(form)">
+
+    <div th:replace="~{fragments/ui/components :: pageHeader('Coach', ${isNew ? 'Nouvelle séance' : 'Modifier la séance'},
+          'Construisez votre séance avec des blocks (exercice seul, superset, triset ou circuit).', ~{::editorActions}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <div th:fragment="editorActions" class="flex gap-2">
+        <a href="/app/coach/sessions" class="btn" data-variant="ghost">
+          <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4')}"></th:block> Retour
+        </a>
+        <button type="button" id="session-save" class="btn group" data-variant="hero"
+                hx-post="/app/coach/sessions/save" hx-include="#session-editor" hx-swap="none">
+          <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+          <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+        </button>
+      </div>
+    </th:block>
+
+    <div class="container py-8 space-y-6">
+      <div class="card">
+        <section class="pt-6 space-y-4">
+          <div class="space-y-2">
+            <label class="label" for="session-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+            <input class="input" id="session-title" type="text" x-model="form.title">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="session-description">Description (visible élève)</label>
+            <textarea class="textarea" id="session-description" rows="3" x-model="form.description"></textarea>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="space-y-2">
+              <label class="label" for="session-category">Catégorie</label>
+              <select class="select" id="session-category" :value="form.category ?? 'none'"
+                      @change="form.category = $event.target.value === 'none' ? null : $event.target.value">
+                <option value="none">—</option>
+                <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label class="label" for="session-level">Niveau</label>
+              <select class="select" id="session-level" :value="form.level ?? 'none'"
+                      @change="form.level = $event.target.value === 'none' ? null : $event.target.value">
+                <option value="none">—</option>
+                <option th:each="l : ${levels}" th:value="${l.code()}" th:text="${l.label()}"></option>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label class="label" for="session-duration">Durée (min)</label>
+              <input class="input" id="session-duration" type="number" min="1" :value="form.duration_minutes ?? ''"
+                     @input="form.duration_minutes = $event.target.value ? Number($event.target.value) : null">
+            </div>
+          </div>
+          <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+              <input class="input" type="checkbox" role="switch" id="session-template" x-model="form.is_template">
+              <label class="label cursor-pointer" for="session-template">Template</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <input class="input" type="checkbox" role="switch" id="session-published" x-model="form.is_published">
+              <label class="label cursor-pointer" for="session-published">Publié</label>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="space-y-4">
+        <template x-for="(block, bi) in form.blocks" :key="block.key">
+          <div class="card">
+            <header class="flex flex-row items-center gap-3 pb-3">
+              <div class="flex flex-col">
+                <button type="button" class="btn" data-variant="ghost" data-size="icon" :disabled="bi === 0" @click="moveBlock(bi, -1)"
+                        aria-label="Monter" th:utext="${icons.svg('arrow-up', 'h-4 w-4')}"></button>
+                <button type="button" class="btn" data-variant="ghost" data-size="icon" :disabled="bi === form.blocks.length - 1"
+                        @click="moveBlock(bi, 1)" aria-label="Descendre" th:utext="${icons.svg('arrow-down', 'h-4 w-4')}"></button>
+              </div>
+              <span class="badge rounded-full" data-variant="secondary" x-text="`#${bi + 1}`"></span>
+              <select class="select w-[160px]" :value="block.block_type" @change="convertBlock(bi, $event.target.value)" aria-label="Type de block">
+                <template x-for="t in blockTypes" :key="t.code"><option :value="t.code" x-text="t.label" :selected="t.code === block.block_type"></option></template>
+              </select>
+              <div class="flex items-center gap-1" x-show="block.block_type !== 'single'">
+                <label class="label text-xs leading-4">Tours</label>
+                <input class="input w-16" type="number" min="1" :value="block.rounds"
+                       @input="block.rounds = Math.max(1, Number($event.target.value) || 1)">
+              </div>
+              <div class="flex-1"></div>
+              <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Supprimer block" @click="removeBlock(bi)"
+                      th:utext="${icons.svg('trash-2', 'h-4 w-4 text-destructive')}"></button>
+            </header>
+            <section class="space-y-3">
+              <textarea class="textarea" rows="2" placeholder="Notes du block (optionnel)…" :value="block.notes ?? ''"
+                        @input="block.notes = $event.target.value || null"></textarea>
+              <template x-for="(item, ei) in block.exercises" :key="item.key">
+                <div th:replace="~{::exerciseRow}"></div>
+              </template>
+              <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="addExercise(bi)">
+                <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter un exercice au block
+              </button>
+            </section>
+          </div>
+        </template>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn" data-variant="outline" @click="addBlock('single')">
+          <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter un exercice
+        </button>
+        <button type="button" class="btn" data-variant="outline" @click="addBlock('superset')">
+          <th:block th:utext="${icons.svg('layers', 'h-4 w-4')}"></th:block> Superset
+        </button>
+        <button type="button" class="btn" data-variant="outline" @click="addBlock('triset')">
+          <th:block th:utext="${icons.svg('layers', 'h-4 w-4')}"></th:block> Triset
+        </button>
+        <button type="button" class="btn" data-variant="outline" @click="addBlock('circuit')">
+          <th:block th:utext="${icons.svg('layers', 'h-4 w-4')}"></th:block> Circuit
+        </button>
+      </div>
+    </div>
+  </form>
+</th:block>
+
+<!--/* SessionExerciseRow : sélecteur d'exercice avec recherche, séries, attributs (5 max), note pour l'élève. */-->
+<div th:fragment="exerciseRow" class="rounded-md border p-3 space-y-3 bg-card"
+     x-data="{ pickerOpen: false, query: '', attrPickerOpen: false, attrPickerType: 'reps', editingAttr: null }">
+  <div class="flex items-start gap-2">
+    <div class="relative flex-1" @click.outside="pickerOpen = false">
+      <button type="button" role="combobox" class="btn w-full justify-between" data-variant="outline" :aria-expanded="pickerOpen"
+              @click="pickerOpen = !pickerOpen; query = ''; $nextTick(() => pickerOpen && $refs.search.focus())">
+        <span x-text="exerciseTitle(item.exercise_id) ?? 'Choisir un exercice…'"></span>
+        <th:block th:utext="${icons.svg('chevrons-up-down', 'h-4 w-4 opacity-50')}"></th:block>
+      </button>
+      <div x-show="pickerOpen" x-cloak class="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-md border bg-popover text-popover-foreground shadow-md">
+        <div class="flex items-center border-b px-3">
+          <th:block th:utext="${icons.svg('search', 'mr-2 h-4 w-4 shrink-0 opacity-50')}"></th:block>
+          <input x-ref="search" x-model="query" placeholder="Rechercher…"
+                 class="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground">
+        </div>
+        <div class="max-h-[300px] overflow-y-auto overflow-x-hidden p-1">
+          <p x-show="matching(query).length === 0" class="py-6 text-center text-sm">Aucun exercice.</p>
+          <template x-for="ex in matching(query)" :key="ex.id">
+            <button type="button" @click="selectExercise(item, ex); pickerOpen = false"
+                    class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground">
+              <span class="mr-2" :class="item.exercise_id === ex.id ? 'opacity-100' : 'opacity-0'" th:utext="${icons.svg('check', 'h-4 w-4')}"></span>
+              <span x-text="ex.title"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1">
+      <label class="label text-xs leading-4">Séries</label>
+      <input class="input w-16" type="number" min="1" :value="item.sets" @input="item.sets = Math.max(1, Number($event.target.value) || 1)">
+    </div>
+    <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Supprimer" @click="removeExercise(bi, ei)"
+            th:utext="${icons.svg('trash-2', 'h-4 w-4 text-destructive')}"></button>
+  </div>
+  <div class="space-y-2">
+    <div class="flex items-center justify-between">
+      <label class="label text-xs leading-4" x-text="`Attributs (${item.attributes.length}/5)`"></label>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <template x-for="(attr, ai) in item.attributes" :key="ai">
+        <div class="flex items-center gap-1 rounded-full border px-2 py-1 text-xs bg-muted/30">
+          <button type="button" class="font-medium hover:text-primary" @click="editingAttr = editingAttr === ai ? null : ai"
+                  x-text="`${meta(attr.type)?.label}:`"></button>
+          <template x-if="editingAttr === ai && meta(attr.type)?.kind === 'BOOLEAN'">
+            <input class="input" type="checkbox" role="switch" :checked="Boolean(attr.default)" @change="attr.default = $event.target.checked">
+          </template>
+          <template x-if="editingAttr === ai && meta(attr.type)?.kind === 'NONE'"><span>—</span></template>
+          <template x-if="editingAttr === ai && ['NUMBER', 'STRING'].includes(meta(attr.type)?.kind)">
+            <input class="input h-6 w-20 text-xs" x-init="$el.focus()" :type="meta(attr.type).kind === 'NUMBER' ? 'number' : 'text'"
+                   :value="attr.default ?? ''" @blur="editingAttr = null"
+                   @input="attr.default = meta(attr.type).kind === 'NUMBER' ? Number($event.target.value) : $event.target.value">
+          </template>
+          <span x-show="editingAttr !== ai" class="text-muted-foreground" x-text="attrValue(attr)"></span>
+          <button type="button" class="ml-1 text-muted-foreground hover:text-destructive" aria-label="Retirer attribut"
+                  @click="item.attributes.splice(ai, 1); if (editingAttr === ai) editingAttr = null"
+                  th:utext="${icons.svg('x', 'h-3 w-3')}"></button>
+        </div>
+      </template>
+      <div x-show="attrPickerOpen" class="flex items-center gap-1">
+        <select class="select h-7 text-xs w-[140px]" x-model="attrPickerType" aria-label="Type d'attribut">
+          <template x-for="t in types" :key="t.code"><option :value="t.code" x-text="t.label" :selected="t.code === attrPickerType"></option></template>
+        </select>
+        <button type="button" class="btn" data-variant="hero" data-size="sm" @click="addAttr(item, attrPickerType); attrPickerOpen = false">OK</button>
+        <button type="button" class="btn" data-variant="ghost" data-size="icon" @click="attrPickerOpen = false"
+                th:utext="${icons.svg('x', 'h-3 w-3')}"></button>
+      </div>
+      <button x-show="!attrPickerOpen" type="button" :disabled="item.attributes.length >= 5" @click="attrPickerOpen = true"
+              class="flex items-center gap-1 rounded-full border border-dashed px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary disabled:opacity-50">
+        <th:block th:utext="${icons.svg('plus', 'h-3 w-3')}"></th:block> Ajouter
+      </button>
+    </div>
+  </div>
+  <textarea class="textarea" rows="2" placeholder="Note pour l'élève (optionnel)…" :value="item.exercise_note ?? ''"
+            @input="item.exercise_note = $event.target.value || null"></textarea>
+</div>
+</body>
+</html>

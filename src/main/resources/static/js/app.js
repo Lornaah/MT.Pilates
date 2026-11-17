@@ -394,6 +394,77 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Éditeur de séance par blocs (SessionEditor) : même logique d'état que l'original (ajout, conversion, déplacement).
+  const BLOCK_TYPES = [
+    { code: "single", label: "Exercice seul", slots: 1 },
+    { code: "superset", label: "Superset", slots: 2 },
+    { code: "triset", label: "Triset", slots: 3 },
+    { code: "circuit", label: "Circuit", slots: 4 },
+  ];
+  let nextKey = 0;
+  const emptyItem = () => ({ key: nextKey++, exercise_id: "", attributes: [], sets: 3, exercise_note: null });
+  Alpine.data("sessionEditor", (state, exercises = [], types = []) => ({
+    form: {
+      ...state,
+      blocks: state.blocks.map((b) => ({ ...b, key: nextKey++, exercises: b.exercises.map((e) => ({ ...e, key: nextKey++ })) })),
+    },
+    exercises,
+    types,
+    blockTypes: BLOCK_TYPES,
+    meta(code) { return this.types.find((t) => t.code === code); },
+    exerciseTitle(id) { return this.exercises.find((e) => e.id === id)?.title; },
+    matching(query) {
+      const q = query.toLowerCase().trim();
+      return q ? this.exercises.filter((e) => e.title.toLowerCase().includes(q)) : this.exercises;
+    },
+    attrValue(attr) {
+      const m = this.meta(attr.type);
+      if (!m) return "";
+      const value = m.kind === "BOOLEAN" ? (attr.default ? "oui" : "non") : String(attr.default ?? "—");
+      return m.unit ? `${value} ${m.unit}` : value;
+    },
+    addBlock(type) {
+      const t = BLOCK_TYPES.find((b) => b.code === type);
+      this.form.blocks.push({
+        key: nextKey++, block_type: type, rounds: type === "single" ? 1 : 3, notes: null,
+        exercises: Array.from({ length: t.slots }, emptyItem),
+      });
+    },
+    moveBlock(idx, dir) {
+      const target = idx + dir;
+      if (target < 0 || target >= this.form.blocks.length) return;
+      const blocks = this.form.blocks;
+      [blocks[idx], blocks[target]] = [blocks[target], blocks[idx]];
+    },
+    removeBlock(idx) { this.form.blocks.splice(idx, 1); },
+    convertBlock(idx, type) {
+      const block = this.form.blocks[idx];
+      const slots = BLOCK_TYPES.find((b) => b.code === type).slots;
+      const items = block.exercises.slice(0, slots);
+      while (items.length < slots) items.push(emptyItem());
+      block.block_type = type;
+      block.rounds = type === "single" ? 1 : Math.max(block.rounds, 2);
+      block.exercises = items;
+    },
+    addExercise(bi) { this.form.blocks[bi].exercises.push(emptyItem()); },
+    removeExercise(bi, ei) {
+      const block = this.form.blocks[bi];
+      block.exercises.splice(ei, 1);
+      if (block.exercises.length === 0) this.removeBlock(bi);
+    },
+    selectExercise(item, exercise) {
+      item.exercise_id = exercise.id;
+      item.attributes = (exercise.attributes ?? []).slice(0, 5).map((a) => ({ ...a }));
+    },
+    addAttr(item, type) {
+      if (item.attributes.length >= 5) return;
+      const t = this.meta(type);
+      const attr = { type, default: t.defaultValue ?? null };
+      if (["weight", "time", "rest"].includes(type)) attr.unit = t.unit;
+      item.attributes.push(attr);
+    },
+  }));
+
   // Saisie de tags avec suggestions (bibliothèque d'exercices) : Entrée ou virgule valide, Retour arrière retire le dernier.
   Alpine.data("chipsInput", (initial = [], suggestions = []) => ({
     values: [...initial],

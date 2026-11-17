@@ -14,10 +14,13 @@ public class TrainingHubController {
     private static final List<String> TABS = List.of("programs", "sessions", "exercises");
 
     private final ExerciseService exercises;
+    private final SessionService sessions;
     private final CurrentUserService currentUsers;
 
-    public TrainingHubController(final ExerciseService exercises, final CurrentUserService currentUsers) {
+    public TrainingHubController(final ExerciseService exercises, final SessionService sessions,
+                                 final CurrentUserService currentUsers) {
         this.exercises = exercises;
+        this.sessions = sessions;
         this.currentUsers = currentUsers;
     }
 
@@ -27,6 +30,8 @@ public class TrainingHubController {
         model.addAttribute("tab", active);
         if ("exercises".equals(active)) {
             model.addAttribute("library", exercises.library(currentUsers.require()));
+        } else if ("sessions".equals(active)) {
+            SessionController.fillLibrary(model, sessions, currentUsers.require());
         }
         return "pages/training";
     }

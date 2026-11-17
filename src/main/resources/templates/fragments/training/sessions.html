@@ -1,0 +1,102 @@
+<!--/* SessionLibrary : onglets Toutes / Modèles, recherche, catégorie, niveau (filtrage côté navigateur). */-->
+<div th:fragment="library"
+     x-data="{ tab: 'all', search: '', category: 'all', level: 'all', visible: 0,
+               matches(el) {
+                 const d = el.dataset;
+                 if (this.tab === 'templates' && d.template !== 'true') return false;
+                 if (this.search && !d.title.includes(this.search.toLowerCase())) return false;
+                 if (this.category !== 'all' && d.category !== this.category) return false;
+                 return this.level === 'all' || d.level === this.level;
+               },
+               refresh() { this.$nextTick(() => { this.visible = [...document.querySelectorAll('[data-session]')].filter((el) => this.matches(el)).length; }); } }"
+     x-init="refresh(); ['tab', 'search', 'category', 'level'].forEach((k) => $watch(k, () => refresh()))"
+     @htmx:after-settle.window="refresh()">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Bibliothèque de séances', 'Toutes les séances disponibles — exercices, attributs et fusion (superset/triset/circuit).', ~{this :: newSession}, null, null, null)}"></div>
+  <div class="container py-8 space-y-6">
+    <div class="tabs">
+      <nav role="tablist" class="flex w-full overflow-x-auto justify-start sm:w-auto sm:flex-wrap sm:overflow-visible">
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'all'" @click="tab = 'all'">Toutes</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'templates'" @click="tab = 'templates'">Modèles</button>
+      </nav>
+    </div>
+    <div class="grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
+      <div class="relative">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input class="input pl-9" type="text" placeholder="Rechercher une séance…" aria-label="Rechercher une séance" x-model="search">
+      </div>
+      <select class="select" aria-label="Filtrer par catégorie" x-model="category">
+        <option value="all" selected>Toutes catégories</option>
+        <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"></option>
+      </select>
+      <select class="select" aria-label="Filtrer par niveau" x-model="level">
+        <option value="all" selected>Tous niveaux</option>
+        <option th:each="l : ${levels}" th:value="${l.code()}" th:text="${l.label()}"></option>
+      </select>
+    </div>
+    <div th:replace="~{this :: grid}"></div>
+    <p th:unless="${hasExercises}" class="text-xs text-muted-foreground" th:text="#{sessions.tip}"></p>
+  </div>
+</div>
+
+<a th:fragment="newSession" href="/app/coach/sessions/new" class="btn" data-variant="hero">
+  <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block>
+  Nouvelle séance
+</a>
+
+<div th:fragment="grid" id="session-grid">
+  <template x-if="visible === 0">
+    <div th:replace="~{fragments/ui/components :: emptyState('activity', null,
+          ${sessions.isEmpty() ? 'Aucune séance. Cliquez sur « Nouvelle séance ».' : 'Aucune séance ne correspond aux filtres.'}, null)}"></div>
+  </template>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5" x-show="visible > 0">
+    <div th:each="s : ${sessions}" data-session th:data-title="${#strings.toLowerCase(s.title())}"
+         th:data-template="${s.template()}" th:data-category="${s.category().orElse('')}" th:data-level="${s.levelCode()}"
+         x-show="matches($el)"
+         class="card overflow-hidden transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring">
+      <div class="p-5 space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="font-display text-lg leading-tight" th:text="${s.title()}"></h3>
+          <span th:if="${s.template()}" class="badge rounded-full text-xs shrink-0" data-variant="outline">Template</span>
+        </div>
+        <p th:if="${s.description().isPresent()}" class="text-sm text-muted-foreground line-clamp-2" th:text="${s.description().get()}"></p>
+        <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span th:if="${s.category().isPresent()}" class="badge rounded-full" data-variant="secondary" th:text="${s.category().get()}"></span>
+          <span th:if="${s.level().isPresent()}" th:class="|badge rounded-full ${s.level().get().badgeClass()}|" data-variant="outline"
+                th:text="${s.level().get().label()}"></span>
+          <span th:if="${s.durationMinutes().isPresent() and s.durationMinutes().get() > 0}" th:text="|· ${s.durationMinutes().get()} min|"></span>
+        </div>
+        <div class="flex items-center gap-4 text-xs text-muted-foreground">
+          <span class="flex items-center gap-1"><th:block th:utext="${icons.svg('layers', 'h-3 w-3')}"></th:block> <th:block th:text="|${s.blockCount()} blocks|"></th:block></span>
+          <span class="flex items-center gap-1"><th:block th:utext="${icons.svg('dumbbell', 'h-3 w-3')}"></th:block> <th:block th:text="|${s.exerciseCount()} ex.|"></th:block></span>
+        </div>
+        <div class="grid grid-cols-3 gap-1 pt-2 border-t">
+          <a class="btn justify-center min-h-11" data-variant="ghost" data-size="sm" th:href="@{/app/coach/sessions/{id}(id=${s.id()})}"
+             th:aria-label="|Éditer ${s.title()}|">
+            <th:block th:utext="${icons.svg('pencil', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Éditer</span>
+          </a>
+          <button type="button" class="btn justify-center min-h-11" data-variant="ghost" data-size="sm" th:aria-label="|Dupliquer ${s.title()}|"
+                  th:attr="hx-post=@{/app/coach/sessions/{id}/duplicate(id=${s.id()})}" hx-swap="none">
+            <th:block th:utext="${icons.svg('copy', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Dupliquer</span>
+          </button>
+          <th:block th:with="dialogId=|delete-session-${s.id()}|">
+            <button type="button" class="btn justify-center min-h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    data-variant="ghost" data-size="sm" th:aria-label="|Supprimer ${s.title()}|" th:attr="data-dialog=${dialogId}"
+                    onclick="document.getElementById(this.dataset.dialog).showModal()">
+              <th:block th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Supprimer</span>
+            </button>
+            <dialog class="alert-dialog" th:id="${dialogId}">
+              <div>
+                <header><h2>Supprimer cette séance ?</h2><p th:text="|« ${s.title()} » sera définitivement supprimée.|"></p></header>
+                <footer>
+                  <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                  <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/sessions/{id}(id=${s.id()})}"
+                          hx-target="#session-grid" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                </footer>
+              </div>
+            </dialog>
+          </th:block>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

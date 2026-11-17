@@ -20,6 +20,7 @@
       </nav>
       <div role="tabpanel" class="mt-4">
         <th:block th:if="${tab == 'exercises'}"><div th:replace="~{fragments/training/exercises :: library}"></div></th:block>
+        <th:block th:if="${tab == 'sessions'}"><div th:replace="~{fragments/training/sessions :: library}"></div></th:block>
       </div>
     </div>
   </div>
