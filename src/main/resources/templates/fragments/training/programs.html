@@ -1,0 +1,90 @@
+<!--/* ProgramLibrary : onglets par statut et recherche, filtrage côté navigateur. */-->
+<div th:fragment="library"
+     x-data="{ tab: 'all', search: '', visible: 0, inTab: 0,
+               inTabOf(el) { return this.tab === 'all' || el.dataset.status === this.tab; },
+               matches(el) { return this.inTabOf(el) && (!this.search || el.dataset.title.includes(this.search.toLowerCase())); },
+               refresh() { this.$nextTick(() => { const all = [...document.querySelectorAll('[data-program]')];
+                 this.visible = all.filter((el) => this.matches(el)).length; this.inTab = all.filter((el) => this.inTabOf(el)).length; }); } }"
+     x-init="refresh(); ['tab', 'search'].forEach((k) => $watch(k, () => refresh()))" @htmx:after-settle.window="refresh()">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Planifications', 'Tous les programmes existants — modèles communs et programmes assignés aux membres.', ~{this :: newProgram}, null, null, null)}"></div>
+  <div class="container py-8 space-y-6">
+    <div class="tabs">
+      <nav role="tablist" class="flex w-full overflow-x-auto h-auto p-1 justify-start sm:flex-wrap sm:overflow-visible scrollbar-thin">
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'all'" @click="tab = 'all'">Tous</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'active'" @click="tab = 'active'">En cours</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'scheduled'" @click="tab = 'scheduled'">Programmées</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'finished'" @click="tab = 'finished'">Terminées</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'draft'" @click="tab = 'draft'">Brouillons</button>
+        <button type="button" role="tab" class="shrink-0" :aria-selected="tab === 'template'" @click="tab = 'template'">Modèles</button>
+      </nav>
+    </div>
+    <div class="relative max-w-md">
+      <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+      <input class="input pl-9" type="text" placeholder="Rechercher une planification…" aria-label="Rechercher une planification" x-model="search">
+    </div>
+    <div th:replace="~{this :: grid}"></div>
+  </div>
+</div>
+
+<a th:fragment="newProgram" href="/app/coach/programs/new" class="btn" data-variant="hero">
+  <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block>
+  Nouvelle planification
+</a>
+
+<div th:fragment="grid" id="program-grid">
+  <template x-if="visible === 0">
+    <div class="card">
+      <section class="py-16 text-center text-muted-foreground space-y-2">
+        <th:block th:utext="${icons.svg('calendar-range', 'h-10 w-10 mx-auto opacity-30')}"></th:block>
+        <p class="text-sm" x-text="inTab === 0 ? 'Aucune planification dans cette catégorie.' : 'Aucune planification ne correspond à la recherche.'"></p>
+      </section>
+    </div>
+  </template>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5" x-show="visible > 0">
+    <div th:each="p : ${programs}" data-program th:data-title="${#strings.toLowerCase(p.title())}" th:data-status="${p.status().code()}"
+         x-show="matches($el)" class="card overflow-hidden transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring">
+      <div class="p-5 space-y-3">
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="font-display text-lg leading-tight" th:text="${p.title()}"></h3>
+          <span th:class="|badge rounded-full text-xs shrink-0 ${p.status().badgeClass()}|" data-variant="outline" th:text="${p.status().label()}"></span>
+        </div>
+        <p th:if="${p.description().isPresent()}" class="text-sm text-muted-foreground line-clamp-2" th:text="${p.description().get()}"></p>
+        <div th:unless="${p.objectives().isEmpty()}" class="flex flex-wrap gap-1">
+          <span th:each="o : ${p.objectives()}" class="badge rounded-full text-xs" data-variant="secondary" th:text="${o}"></span>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+          <th:block th:utext="${icons.svg('users', 'h-3 w-3')}"></th:block>
+          <span class="truncate" th:text="${p.assigneeLabel()}"></span>
+        </div>
+        <div class="text-xs text-muted-foreground" th:text="${p.period()}"></div>
+        <div class="grid grid-cols-3 gap-1 pt-2 border-t">
+          <a class="btn justify-center px-2 min-h-11" data-variant="ghost" data-size="sm" th:href="@{/app/coach/programs/{id}(id=${p.id()})}"
+             th:aria-label="|Éditer ${p.title()}|">
+            <th:block th:utext="${icons.svg('pencil', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Éditer</span>
+          </a>
+          <button type="button" class="btn justify-center px-2 min-h-11" data-variant="ghost" data-size="sm" th:aria-label="|Dupliquer ${p.title()}|"
+                  th:attr="hx-post=@{/app/coach/programs/{id}/duplicate(id=${p.id()})}" hx-swap="none">
+            <th:block th:utext="${icons.svg('copy', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Dupliquer</span>
+          </button>
+          <th:block th:with="dialogId=|delete-program-${p.id()}|">
+            <button type="button" class="btn justify-center px-2 min-h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    data-variant="ghost" data-size="sm" th:aria-label="|Supprimer ${p.title()}|" th:attr="data-dialog=${dialogId}"
+                    onclick="document.getElementById(this.dataset.dialog).showModal()">
+              <th:block th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></th:block><span class="hidden xl:inline ml-1">Supprimer</span>
+            </button>
+            <dialog class="alert-dialog" th:id="${dialogId}">
+              <div>
+                <header><h2>Supprimer cette planification ?</h2><p th:text="|« ${p.title()} » sera définitivement supprimée.|"></p></header>
+                <footer>
+                  <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                  <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/programs/{id}(id=${p.id()})}"
+                          hx-target="#program-grid" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                </footer>
+              </div>
+            </dialog>
+          </th:block>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

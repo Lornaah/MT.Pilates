@@ -146,10 +146,11 @@
   }
 }
 
-/* `space-x/y-*` à la manière de Tailwind v3 (marge sur les enfants suivants, éléments [hidden] ignorés).
+/* `space-x/y-*` à la manière de Tailwind v3 (marge sur les enfants suivants, éléments [hidden] ignorés,
+   ainsi que les <template> d'Alpine, qui n'existaient pas dans le rendu React).
    La version v4 met la marge en bas de chaque enfant, sans effet sous un élément inline comme un label. */
 @utility space-y-* {
-  & > :not([hidden]) ~ :not([hidden]) {
+  & > :not([hidden], template) ~ :not([hidden], template) {
     margin-top: --spacing(--value(integer, number));
     margin-bottom: 0;
   }
@@ -158,7 +159,7 @@
   }
 }
 @utility space-x-* {
-  & > :not([hidden]) ~ :not([hidden]) {
+  & > :not([hidden], template) ~ :not([hidden], template) {
     margin-left: --spacing(--value(integer, number));
     margin-right: 0;
   }

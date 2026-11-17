@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Planification — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    ProgramEditor : semaines × 7 jours dans l'état Alpine, comme l'original ; « Brouillon » et « Publier »
+    envoient tout en JSON au serveur, qui valide et enregistre en une transaction.
+  */-->
+  <form id="program-editor" onsubmit="return false"
+        th:data-state="${stateJson}" th:data-members="${membersJson}" th:data-sessions="${sessionsJson}"
+        th:data-objectives="${json.write(labels.objectives())}"
+        x-data="programEditor(JSON.parse($el.dataset.state), JSON.parse($el.dataset.members), JSON.parse($el.dataset.sessions), JSON.parse($el.dataset.objectives))">
+    <input type="hidden" name="id" th:value="${programId}">
+    <input type="hidden" name="payload" :value="JSON.stringify(payload)">
+
+    <div th:replace="~{fragments/ui/components :: pageHeader('Coach', ${isNew ? 'Nouvelle planification' : 'Modifier la planification'},
+          #{programs.description}, ~{::programActions}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <div th:fragment="programActions" class="flex flex-wrap gap-2">
+        <a href="/app/coach/programs" class="btn" data-variant="ghost">
+          <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4')}"></th:block> Retour
+        </a>
+        <button type="button" class="btn" data-variant="outline" hx-post="/app/coach/programs/save" hx-include="#program-editor"
+                hx-vals='{"status": "draft"}' hx-swap="none">Brouillon</button>
+        <button type="button" class="btn group" data-variant="hero" hx-post="/app/coach/programs/save" hx-include="#program-editor"
+                hx-vals='{"status": "active"}' hx-swap="none">
+          <span class="group-[.htmx-request]:hidden">Publier</span>
+          <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+        </button>
+      </div>
+    </th:block>
+
+    <div class="px-4 lg:px-8 py-6 space-y-6 max-w-[1600px] mx-auto">
+      <div th:if="${isNew and !programOptions.isEmpty()}" class="card">
+        <section class="pt-6 flex flex-wrap items-end gap-3">
+          <div class="space-y-2 flex-1 min-w-[240px]">
+            <label class="label" for="program-prefill">Pré-remplir depuis un programme existant</label>
+            <select class="select" id="program-prefill" onchange="if (this.value) location.href = '/app/coach/programs/prefill/' + this.value">
+              <option value="" selected disabled hidden>Choisir un programme à recopier…</option>
+              <option th:each="p : ${programOptions}" th:value="${p.id}" th:text="${p.label}"></option>
+            </select>
+          </div>
+          <p class="text-xs text-muted-foreground" th:utext="#{programs.prefill.hint}"></p>
+        </section>
+      </div>
+
+      <div class="card">
+        <section class="pt-5 pb-4">
+          <details open class="group">
+            <summary class="cursor-pointer list-none flex items-center justify-between gap-2">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <span class="badge rounded-full" data-variant="secondary">Paramètres</span>
+                <span class="font-display text-base truncate" x-text="form.title || 'Sans titre'"></span>
+                <span class="text-xs text-muted-foreground hidden sm:inline" x-text="`· ${targetLabel}`"></span>
+              </div>
+              <th:block th:utext="${icons.svg('chevrons-up-down', 'h-4 w-4 text-muted-foreground')}"></th:block>
+            </summary>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-5">
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <label class="label" for="program-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+                  <input class="input" id="program-title" type="text" x-model="form.title">
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="program-description">Description (visible élève)</label>
+                  <textarea class="textarea" id="program-description" rows="3" x-model="form.description"></textarea>
+                </div>
+                <div class="max-w-xs space-y-2" @change="if ($event.target.name === 'programStart') form.start_date = $event.target.value || null">
+                  <label class="label" for="program-start">Date de début</label>
+                  <div th:replace="~{fragments/ui/components :: datePicker('program-start', 'programStart', ${startDate}, 'Date de début', false, null)}"></div>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="label">Cible du programme</label>
+                <div class="flex gap-2">
+                  <button type="button" class="btn" data-size="sm" :data-variant="targetMode === 'objectives' ? 'default' : 'outline'"
+                          @click="targetMode = 'objectives'">Groupes d'objectifs</button>
+                  <button type="button" class="btn" data-size="sm" :data-variant="targetMode === 'member' ? 'default' : 'outline'"
+                          @click="targetMode = 'member'">Élève spécifique</button>
+                </div>
+                <div x-show="targetMode === 'objectives'" class="space-y-2 pt-2">
+                  <p class="text-xs text-muted-foreground" th:text="#{programs.objectives.hint}"></p>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="o in objectives" :key="o">
+                      <button type="button" class="focus:outline-hidden" @click="toggleObjective(o)" :aria-pressed="form.objectives.includes(o)">
+                        <span class="badge rounded-full cursor-pointer" :data-variant="form.objectives.includes(o) ? 'default' : 'outline'" x-text="o"></span>
+                      </button>
+                    </template>
+                    <span x-show="objectives.length === 0" class="text-xs text-muted-foreground">Aucun objectif configuré</span>
+                  </div>
+                </div>
+                <select x-show="targetMode === 'member'" class="select" aria-label="Élève" :value="form.assignee_id ?? ''"
+                        @change="form.assignee_id = $event.target.value || null">
+                  <option value="" disabled hidden>Choisir un élève…</option>
+                  <template x-for="m in members" :key="m.id"><option :value="m.id" x-text="m.label" :selected="m.id === form.assignee_id"></option></template>
+                </select>
+              </div>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-xl leading-7">Planning hebdomadaire</h2>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn" data-variant="outline" data-size="sm" @click="addWeek()">
+              <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter une semaine
+            </button>
+            <button type="button" class="btn" data-variant="outline" data-size="sm" @click="addMonth()">
+              <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Ajouter un mois
+            </button>
+            <a class="btn" data-variant="outline" data-size="sm" href="/app/coach/sessions/new" target="_blank">
+              <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Créer une séance
+            </a>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <template x-for="group in monthGroups" :key="group.startIdx">
+            <div>
+              <template x-if="group.weeks.length < 4">
+                <div class="space-y-4">
+                  <template x-for="(week, localIdx) in group.weeks" :key="week.key">
+                    <div th:replace="~{::weekCard}"></div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="group.weeks.length === 4">
+                <div class="card border-dashed">
+                  <header class="flex flex-row items-center justify-between gap-2 pb-3">
+                    <button type="button" class="flex items-center gap-2 min-w-0 flex-1 text-left" @click="toggleMonth(group.startIdx)">
+                      <span :class="!isMonthOpen(group.startIdx) && '-rotate-90'" class="transition-transform"
+                            th:utext="${icons.svg('chevron-down', 'h-4 w-4')}"></span>
+                      <span class="badge rounded-full font-display" data-variant="outline" x-text="`Mois ${group.startIdx / 4 + 1}`"></span>
+                      <span class="text-xs text-muted-foreground">4 semaines</span>
+                    </button>
+                    <button type="button" class="btn" data-variant="ghost" data-size="sm" aria-label="Dupliquer le mois"
+                            @click="duplicateMonth(group.startIdx)">
+                      <th:block th:utext="${icons.svg('copy', 'h-4 w-4')}"></th:block> Dupliquer le mois
+                    </button>
+                  </header>
+                  <section x-show="isMonthOpen(group.startIdx)" class="space-y-4 pt-0">
+                    <template x-for="(week, localIdx) in group.weeks" :key="week.key">
+                      <div th:replace="~{::weekCard}"></div>
+                    </template>
+                  </section>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </form>
+</th:block>
+
+<!--/* WeekCard : commentaire de semaine, actions, grille Lun→Dim de DayCell. */-->
+<div th:fragment="weekCard" class="card" x-data="{ get wi() { return group.startIdx + localIdx; } }">
+  <header class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3">
+    <div class="flex items-center gap-2 w-full sm:w-auto">
+      <span class="badge rounded-full shrink-0 border" data-variant="outline" :class="weekColor(wi)" x-text="`Semaine ${wi + 1}`"></span>
+      <input class="input flex-1 sm:hidden" placeholder="Commentaire de la semaine…" :value="week.week_comment ?? ''"
+             @input="week.week_comment = $event.target.value || null">
+    </div>
+    <input class="input flex-1 hidden sm:block" placeholder="Commentaire de la semaine (visible élève)…" :value="week.week_comment ?? ''"
+           @input="week.week_comment = $event.target.value || null">
+    <div class="flex items-center gap-1 self-end sm:self-auto shrink-0">
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Monter" :disabled="wi === 0" @click="moveWeek(wi, -1)"
+              th:utext="${icons.svg('arrow-up', 'h-4 w-4')}"></button>
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Descendre" :disabled="wi === form.weeks.length - 1"
+              @click="moveWeek(wi, 1)" th:utext="${icons.svg('arrow-down', 'h-4 w-4')}"></button>
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Dupliquer" @click="duplicateWeek(wi)"
+              th:utext="${icons.svg('copy', 'h-4 w-4')}"></button>
+      <button type="button" class="btn" data-variant="ghost" data-size="icon" aria-label="Supprimer" @click="removeWeek(wi)"
+              th:utext="${icons.svg('trash-2', 'h-4 w-4 text-destructive')}"></button>
+    </div>
+  </header>
+  <section>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
+      <template x-for="(day, di) in week.days" :key="di">
+        <div th:replace="~{::dayCell}"></div>
+      </template>
+    </div>
+  </section>
+</div>
+
+<!--/* DayCell : repos / séance, bilan additif, séances du jour (plusieurs, dans l'ordre), commentaire. */-->
+<div th:fragment="dayCell" class="rounded-md border p-2 space-y-2 bg-card min-h-[140px] flex flex-col"
+     x-data="{ commentOpen: false, pickerOpen: false, query: '' }">
+  <div class="flex items-center justify-between">
+    <span class="text-xs font-medium text-muted-foreground" x-text="dayLabels[di]"></span>
+    <div class="relative" @click.outside="commentOpen = false">
+      <button type="button" class="btn h-6 w-6" data-variant="ghost" data-size="icon" aria-label="Commentaire" @click="commentOpen = !commentOpen">
+        <span :class="day.day_comment && 'text-primary'" th:utext="${icons.svg('message-square', 'h-3 w-3')}"></span>
+      </button>
+      <div x-show="commentOpen" x-cloak class="absolute right-0 top-full z-50 mt-1 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md">
+        <label class="label text-xs leading-4">Commentaire (visible élève)</label>
+        <textarea class="textarea" rows="3" :value="day.day_comment ?? ''" @input="day.day_comment = $event.target.value || null"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-1">
+    <button type="button" class="btn h-7 text-xs" data-size="sm" :data-variant="isRest(day) ? 'default' : 'outline'" @click="setRest(day)">
+      <th:block th:utext="${icons.svg('bed', 'h-3 w-3')}"></th:block> Repos
+    </button>
+    <button type="button" class="btn h-7 text-xs" data-size="sm" :data-variant="!isRest(day) ? 'default' : 'outline'" @click="setWorkout(day)">
+      <th:block th:utext="${icons.svg('dumbbell', 'h-3 w-3')}"></th:block> Séance
+    </button>
+  </div>
+  <button type="button" class="btn h-6 text-[11px] justify-start px-2" data-size="sm" :data-variant="hasReview(day) ? 'secondary' : 'ghost'"
+          @click="toggleReview(day)">
+    <th:block th:utext="${icons.svg('clipboard-check', 'h-3 w-3')}"></th:block>
+    <span x-text="hasReview(day) ? 'Bilan inclus' : '+ Ajouter bilan'"></span>
+  </button>
+  <div x-show="day.day_type === 'workout' || day.day_type === 'mixed'" class="space-y-1">
+    <template x-for="sid in day.workout_session_ids.filter((id) => sessionTitle(id))" :key="sid">
+      <div class="flex items-center gap-1 rounded-sm bg-muted/50 px-1.5 py-1 text-xs">
+        <span class="truncate flex-1" x-text="sessionTitle(sid)"></span>
+        <a :href="`/app/coach/sessions/${sid}`" target="_blank" rel="noreferrer" class="text-muted-foreground hover:text-primary"
+           aria-label="Voir la séance" title="Ouvrir la séance" th:utext="${icons.svg('eye', 'h-3 w-3')}"></a>
+        <button type="button" class="text-muted-foreground hover:text-destructive" aria-label="Retirer"
+                @click="day.workout_session_ids = day.workout_session_ids.filter((x) => x !== sid)"
+                th:utext="${icons.svg('x', 'h-3 w-3')}"></button>
+      </div>
+    </template>
+    <div class="relative" @click.outside="pickerOpen = false">
+      <button type="button" class="btn w-full text-xs justify-between h-7" data-variant="outline" data-size="sm"
+              @click="pickerOpen = !pickerOpen; query = ''; $nextTick(() => pickerOpen && $refs.search.focus())">
+        <span class="truncate">+ Ajouter une séance</span>
+        <th:block th:utext="${icons.svg('chevrons-up-down', 'h-3 w-3 opacity-50')}"></th:block>
+      </button>
+      <div x-show="pickerOpen" x-cloak class="absolute left-0 top-full z-50 mt-1 w-[260px] rounded-md border bg-popover text-popover-foreground shadow-md">
+        <div class="flex items-center border-b px-3">
+          <th:block th:utext="${icons.svg('search', 'mr-2 h-4 w-4 shrink-0 opacity-50')}"></th:block>
+          <input x-ref="search" x-model="query" placeholder="Rechercher…"
+                 class="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground">
+        </div>
+        <div class="max-h-[300px] overflow-y-auto p-1">
+          <p x-show="matchingSessions(query).length === 0" class="py-6 text-center text-sm">Aucune séance.</p>
+          <template x-for="s in matchingSessions(query)" :key="s.id">
+            <button type="button" @click="addSession(day, s.id)"
+                    class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground">
+              <span class="mr-2" :class="day.workout_session_ids.includes(s.id) ? 'opacity-100' : 'opacity-0'" th:utext="${icons.svg('check', 'h-4 w-4')}"></span>
+              <span x-text="s.label"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-auto flex items-center gap-2 text-muted-foreground text-xs">
+    <span x-show="day.day_type === 'rest' || day.day_type === 'review'" class="inline-flex items-center gap-1">
+      <th:block th:utext="${icons.svg('bed', 'h-3 w-3')}"></th:block> Repos
+    </span>
+    <span x-show="day.day_type === 'workout' || day.day_type === 'mixed'" class="inline-flex items-center gap-1">
+      <th:block th:utext="${icons.svg('dumbbell', 'h-3 w-3')}"></th:block>
+      <span x-text="`Séance${day.workout_session_ids.length > 1 ? 's' : ''}`"></span>
+    </span>
+    <span x-show="day.day_type === 'review' || day.day_type === 'mixed'" class="inline-flex items-center gap-1">
+      <th:block th:utext="${icons.svg('clipboard-check', 'h-3 w-3')}"></th:block> Bilan
+    </span>
+  </div>
+</div>
+</body>
+</html>

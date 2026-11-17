@@ -465,6 +465,80 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Éditeur de planification (ProgramEditor) : semaines de 7 jours, mois de 4 semaines repliables.
+  const WEEK_COLORS = [
+    "bg-primary/15 text-primary border-primary/30",
+    "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+    "bg-amber-500/15 text-amber-700 border-amber-500/30",
+    "bg-sky-500/15 text-sky-700 border-sky-500/30",
+    "bg-fuchsia-500/15 text-fuchsia-700 border-fuchsia-500/30",
+    "bg-rose-500/15 text-rose-700 border-rose-500/30",
+  ];
+  const emptyDay = (n) => ({ day_of_week: n, day_type: "rest", day_comment: null, workout_session_ids: [] });
+  const newWeek = () => ({ key: nextKey++, week_comment: null, days: Array.from({ length: 7 }, (_, i) => emptyDay(i + 1)) });
+  const cloneWeek = (w) => ({ key: nextKey++, week_comment: w.week_comment, days: w.days.map((d) => ({ ...d, workout_session_ids: [...d.workout_session_ids] })) });
+  Alpine.data("programEditor", (state, members = [], sessions = [], objectives = []) => ({
+    form: { ...state, weeks: state.weeks.map((w) => ({ ...w, key: nextKey++ })) },
+    targetMode: state.assignee_id ? "member" : "objectives",
+    members,
+    sessions,
+    objectives,
+    openMonths: { 0: true },
+    dayLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+    get payload() {
+      return {
+        ...this.form,
+        assignee_id: this.targetMode === "member" ? this.form.assignee_id : null,
+        objectives: this.targetMode === "objectives" ? this.form.objectives : [],
+      };
+    },
+    get targetLabel() {
+      if (this.targetMode === "member") {
+        return this.members.find((m) => m.id === this.form.assignee_id)?.label ?? "Élève à choisir";
+      }
+      return this.form.objectives.length ? this.form.objectives.join(", ") : "Aucun groupe";
+    },
+    get monthGroups() {
+      const groups = [];
+      for (let i = 0; i < this.form.weeks.length; i += 4) groups.push({ startIdx: i, weeks: this.form.weeks.slice(i, i + 4) });
+      return groups;
+    },
+    weekColor(i) { return WEEK_COLORS[i % WEEK_COLORS.length]; },
+    isMonthOpen(startIdx) { return Boolean(this.openMonths[startIdx / 4]); },
+    toggleMonth(startIdx) { this.openMonths[startIdx / 4] = !this.isMonthOpen(startIdx); },
+    toggleObjective(o) {
+      this.form.objectives = this.form.objectives.includes(o) ? this.form.objectives.filter((v) => v !== o) : [...this.form.objectives, o];
+    },
+    sessionTitle(id) { return this.sessions.find((s) => s.id === id)?.label; },
+    matchingSessions(query) {
+      const q = query.toLowerCase().trim();
+      return q ? this.sessions.filter((s) => s.label.toLowerCase().includes(q)) : this.sessions;
+    },
+    moveWeek(wi, dir) {
+      const target = wi + dir;
+      if (target < 0 || target >= this.form.weeks.length) return;
+      const weeks = this.form.weeks;
+      [weeks[wi], weeks[target]] = [weeks[target], weeks[wi]];
+    },
+    removeWeek(wi) { this.form.weeks.splice(wi, 1); },
+    duplicateWeek(wi) { this.form.weeks.splice(wi + 1, 0, cloneWeek(this.form.weeks[wi])); },
+    addWeek() { this.form.weeks.push(newWeek()); },
+    duplicateMonth(startIdx) {
+      const block = this.form.weeks.slice(startIdx, startIdx + 4);
+      this.form.weeks.splice(startIdx + block.length, 0, ...block.map(cloneWeek));
+    },
+    addMonth() { for (let i = 0; i < 4; i++) this.form.weeks.push(newWeek()); },
+    hasReview(day) { return day.day_type === "review" || day.day_type === "mixed"; },
+    isRest(day) { return day.day_type === "rest" || day.day_type === "review"; },
+    setRest(day) { day.day_type = this.hasReview(day) ? "review" : "rest"; day.workout_session_ids = []; },
+    setWorkout(day) { day.day_type = this.hasReview(day) ? "mixed" : "workout"; },
+    toggleReview(day) {
+      const review = !this.hasReview(day);
+      day.day_type = this.isRest(day) ? (review ? "review" : "rest") : (review ? "mixed" : "workout");
+    },
+    addSession(day, id) { if (!day.workout_session_ids.includes(id)) day.workout_session_ids.push(id); },
+  }));
+
   // Saisie de tags avec suggestions (bibliothèque d'exercices) : Entrée ou virgule valide, Retour arrière retire le dernier.
   Alpine.data("chipsInput", (initial = [], suggestions = []) => ({
     values: [...initial],
