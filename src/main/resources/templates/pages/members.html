@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Membres — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* Une seule page, deux portées (MembersList de l'original) : « Mes coachés » et « Tous les membres ». */-->
+  <div th:replace="~{fragments/ui/components :: pageHeader(${admin ? 'Gestion' : 'Coach'}, ${admin ? 'Tous les membres' : 'Mes coachés'},
+        ${admin ? #messages.msg('members.admin.description') : #messages.msg('members.coach.description')},
+        (${canManage} ? ~{::createAction} : null), null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <button th:fragment="createAction" type="button" class="btn" data-variant="hero"
+            onclick="document.getElementById('create-member').showModal()">
+      <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block>
+      Nouveau membre
+    </button>
+  </th:block>
+
+  <div class="container py-8 space-y-4">
+    <form id="members-filters" class="flex flex-col sm:flex-row gap-3" onsubmit="return false"
+          th:attr="hx-get=${admin ? '/app/admin/members' : '/app/coach/members'}"
+          hx-target="#members-list" hx-swap="outerHTML"
+          hx-trigger="input changed delay:200ms from:#members-search, change">
+      <div class="relative flex-1 max-w-md">
+        <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+        <input id="members-search" class="input pl-9" type="text" name="search" th:value="${filters.search()}"
+               placeholder="Rechercher un membre…" aria-label="Rechercher un membre">
+      </div>
+      <div class="flex gap-2">
+        <th:block th:if="${admin}">
+          <div th:replace="~{fragments/ui/select :: richSelect('members-coach', 'coach', ${filters.coach()}, 'filter', 'w-full sm:w-[180px]', ~{::coachFilterOptions})}"></div>
+        </th:block>
+        <div th:replace="~{fragments/ui/select :: richSelect('members-status', 'status', ${filters.status()}, 'filter', 'w-full sm:w-[160px]', ~{::statusFilterOptions})}"></div>
+      </div>
+    </form>
+    <th:block th:if="${false}">
+      <th:block th:fragment="coachFilterOptions">
+        <div th:replace="~{fragments/ui/select :: option('all', 'Tous les coachs')}"></div>
+        <th:block th:each="coach : ${coaches}">
+          <div th:replace="~{fragments/ui/select :: option(${coach.id()}, ${coach.name()})}"></div>
+        </th:block>
+      </th:block>
+      <th:block th:fragment="statusFilterOptions">
+        <div th:replace="~{fragments/ui/select :: option('all', 'Tous les statuts')}"></div>
+        <th:block th:each="status : ${statuses}">
+          <div th:replace="~{fragments/ui/select :: option(${status.code()}, ${status.label()})}"></div>
+        </th:block>
+      </th:block>
+    </th:block>
+
+    <div th:fragment="list" id="members-list" class="card">
+      <div class="p-0 divide-y divide-border">
+        <div th:if="${members.isEmpty()}" class="p-8 md:p-12 text-center text-muted-foreground">
+          <th:block th:if="${admin}">Aucun membre trouvé.</th:block>
+          <th:block th:unless="${admin}">Vous n'avez pas encore de membre assigné.</th:block>
+        </div>
+        <div th:each="member : ${members}" class="flex flex-col sm:flex-row sm:items-center">
+          <a th:href="@{/app/coach/members/{id}(id=${member.id()})}"
+             class="flex items-center gap-3 md:gap-4 p-3 md:p-4 flex-1 min-w-0 hover:bg-muted/30 transition-colors rounded-lg">
+            <th:block th:replace="~{fragments/ui/components :: userAvatar(${member.avatarUrl().orElse(null)}, ${member.initial()}, null)}"></th:block>
+            <div class="flex-1 min-w-0">
+              <span class="font-medium truncate block text-sm md:text-base md:leading-6" th:text="${member.name()}"></span>
+              <span class="text-xs text-muted-foreground truncate block" th:text="${member.email()}"></span>
+            </div>
+          </a>
+
+          <div class="flex items-center gap-2 md:gap-3 px-3 md:px-4 pb-3 sm:pb-0 shrink-0 flex-wrap">
+            <div class="hidden lg:flex flex-col items-end text-xs text-muted-foreground shrink-0">
+              <span th:if="${member.subscription().isPresent()}" th:text="${member.subscription().get()}"></span>
+            </div>
+
+            <a th:if="${member.phone().isPresent()}" class="btn shrink-0 text-primary hover:text-primary h-8 px-2"
+               data-variant="ghost" data-size="sm"
+               th:href="|tel:${member.phone().get()}|" th:title="${member.phone().get()}">
+              <th:block th:utext="${icons.svg('phone', 'h-4 w-4')}"></th:block>
+              <span class="hidden xl:inline text-xs ml-1" th:text="${member.phone().get()}"></span>
+            </a>
+
+            <span th:if="${member.coachName().isPresent()}"
+                  th:class="|badge shrink-0 hidden md:inline-flex gap-1.5 border-transparent ${member.coachBadgeClass()} text-xs|"
+                  data-variant="outline" th:text="${member.coachName().get()}"></span>
+
+            <span th:replace="~{fragments/ui/components :: statusBadge(${member.status()})}"></span>
+
+            <div th:if="${canManage}" class="flex gap-1">
+              <button type="button" class="btn h-8 w-8 p-0" data-variant="ghost" data-size="sm" aria-label="Modifier"
+                      th:attr="hx-get=@{/app/admin/members/{id}/edit(id=${member.id()})}"
+                      hx-target="#member-dialog-slot" hx-swap="innerHTML"
+                      th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+              <th:block th:if="${member.deletable()}" th:with="dialogId=|delete-member-${member.id()}|">
+                <button type="button" class="btn text-destructive hover:text-destructive h-8 w-8 p-0" data-variant="ghost"
+                        data-size="sm" aria-label="Supprimer" th:attr="data-dialog=${dialogId}"
+                        onclick="document.getElementById(this.dataset.dialog).showModal()"
+                        th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+                <dialog class="alert-dialog" th:id="${dialogId}">
+                  <div>
+                    <header>
+                      <h2>Supprimer ce membre ?</h2>
+                      <p>La fiche de <strong th:text="${member.name()}"></strong> sera définitivement supprimée.</p>
+                    </header>
+                    <footer>
+                      <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                      <button type="button" class="btn" data-variant="destructive"
+                              th:attr="hx-delete=@{/app/admin/members/{id}(id=${member.id()})}"
+                              hx-target="#members-list" hx-swap="outerHTML" hx-include="#members-filters"
+                              onclick="this.closest('dialog').close()">Supprimer</button>
+                    </footer>
+                  </div>
+                </dialog>
+              </th:block>
+              <a class="btn h-8 w-8 p-0" data-variant="ghost" data-size="sm" aria-label="Ouvrir la fiche"
+                 th:href="@{/app/coach/members/{id}(id=${member.id()})}"
+                 th:utext="${icons.svg('external-link', 'h-4 w-4')}"></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <th:block th:if="${canManage}">
+    <dialog id="create-member" class="dialog" aria-labelledby="create-member-title">
+      <form class="max-w-lg max-h-[90vh] overflow-y-auto" hx-post="/app/admin/members" hx-target="#members-list"
+            hx-swap="outerHTML" hx-include="#members-filters" hx-indicator="find button[type=submit]">
+        <header>
+          <h2 id="create-member-title" class="font-display text-2xl leading-8">Inscrire un membre</h2>
+        </header>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-2">
+              <label class="label" for="create-member-first-name">Prénom</label>
+              <input class="input" id="create-member-first-name" type="text" name="firstName">
+            </div>
+            <div class="space-y-2">
+              <label class="label" for="create-member-last-name">Nom</label>
+              <input class="input" id="create-member-last-name" type="text" name="lastName">
+            </div>
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="create-member-email">Email<span class="text-destructive ml-0.5">*</span></label>
+            <input class="input" id="create-member-email" type="email" name="email" required>
+          </div>
+          <div class="space-y-2" x-data>
+            <div class="space-y-2">
+              <label class="label" for="create-member-password">Mot de passe temporaire<span class="text-destructive ml-0.5">*</span></label>
+              <input class="input" id="create-member-password" type="text" name="password" required x-ref="password">
+              <p class="text-xs text-muted-foreground" th:text="#{members.password.hint}"></p>
+            </div>
+            <button type="button" class="btn gap-2" data-variant="outline" data-size="sm"
+                    @click="$refs.password.value = $strongPassword()">
+              <th:block th:utext="${icons.svg('sparkles', 'h-3.5 w-3.5')}"></th:block>
+              Générer un mot de passe fort
+            </button>
+          </div>
+        </div>
+        <footer th:insert="~{fragments/ui/components :: formDialogFooter('Créer le compte')}"></footer>
+        <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+                th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+      </form>
+    </dialog>
+    <div id="member-dialog-slot"></div>
+  </th:block>
+</th:block>
+
+<!--/* EditMemberDialog : chargé à la demande, ouvert dès son insertion. */-->
+<dialog th:fragment="editDialog" id="edit-member" class="dialog" aria-labelledby="edit-member-title"
+        x-data x-init="$el.showModal()">
+  <form class="max-w-lg max-h-[90vh] overflow-y-auto"
+        th:attr="hx-post=@{/app/admin/members/{id}(id=${member.id()})}"
+        hx-target="#members-list" hx-swap="outerHTML" hx-include="#members-filters"
+        hx-indicator="find button[type=submit]">
+    <header>
+      <h2 id="edit-member-title" class="font-display text-2xl leading-8" th:text="${member.title()}"></h2>
+    </header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="edit-member-status">Statut</label>
+        <div th:replace="~{fragments/ui/select :: richSelect('edit-member-status', 'status', ${member.status()}, null, null, ~{::editStatusOptions})}"></div>
+      </div>
+      <div class="space-y-2" th:data-coach="${member.coachId()}" x-data="{ coach: $el.dataset.coach }"
+           @change="coach = $event.target.value">
+        <label class="label" for="edit-member-coach">Coach assigné</label>
+        <div th:replace="~{fragments/ui/select :: richSelect('edit-member-coach', 'coachId', ${member.coachId().isEmpty() ? 'none' : member.coachId()}, null, null, ~{::editCoachOptions})}"></div>
+        <th:block th:each="coach : ${coaches}">
+          <span th:class="|badge border-transparent ${coach.badgeClass()} text-xs|" data-variant="outline"
+                th:data-id="${coach.id()}" x-show="coach === $el.dataset.id" x-cloak th:text="${coach.name()}"></span>
+        </th:block>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <label class="label" for="edit-member-start">Début abo.</label>
+          <div th:replace="~{fragments/ui/components :: datePicker('edit-member-start', 'subscriptionStartDate', ${member.subscriptionStartDate()}, 'Début abo.', false, null)}"></div>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="edit-member-end">Fin abo.</label>
+          <div th:replace="~{fragments/ui/components :: datePicker('edit-member-end', 'subscriptionEndDate', ${member.subscriptionEndDate()}, 'Fin abo.', false, null)}"></div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="edit-member-phone">Téléphone</label>
+        <input class="input" id="edit-member-phone" type="tel" name="phone" th:value="${member.phone()}">
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+            th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+  <th:block th:if="${false}">
+    <th:block th:fragment="editStatusOptions">
+      <th:block th:each="status : ${statuses}">
+        <div th:replace="~{fragments/ui/select :: badgeOption(${status.code()}, ${status.label()}, ${status.variant()}, 'badge text-[10px] leading-5 px-1.5 py-0')}"></div>
+      </th:block>
+    </th:block>
+    <th:block th:fragment="editCoachOptions">
+      <div th:replace="~{fragments/ui/select :: option('none', 'Aucun')}"></div>
+      <th:block th:each="coach : ${coaches}">
+        <div th:replace="~{fragments/ui/select :: badgeOption(${coach.id()}, ${coach.name()}, null, |inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${coach.badgeClass()}|)}"></div>
+      </th:block>
+    </th:block>
+  </th:block>
+</dialog>
+</body>
+</html>

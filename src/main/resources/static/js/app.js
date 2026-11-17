@@ -149,6 +149,56 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Select riche (Radix Select) : le déclencheur reprend le contenu HTML de l'option choisie (badge, pastille…).
+  Alpine.data("richSelect", (value = "") => ({
+    open: false,
+    value,
+    get label() {
+      const option = this.options().find((o) => o.dataset.value === this.value);
+      return option ? option.querySelector("[data-label]").innerHTML : "";
+    },
+    toggle() {
+      this.open = !this.open;
+      if (this.open) this.$nextTick(() => (this.options().find((o) => o.dataset.value === this.value) ?? this.options()[0])?.focus());
+    },
+    options() {
+      return this.$refs.list ? [...this.$refs.list.querySelectorAll("[role=option]")] : [];
+    },
+    move(delta) {
+      const options = this.options();
+      const index = options.indexOf(document.activeElement);
+      options[Math.min(options.length - 1, Math.max(0, index + delta))]?.focus();
+    },
+    close() {
+      this.open = false;
+      this.$refs.trigger.focus({ preventScroll: true });
+    },
+    choose(option) {
+      this.value = option.dataset.value;
+      this.close();
+      this.$nextTick(() => this.$refs.input.dispatchEvent(new Event("change", { bubbles: true })));
+    },
+  }));
+
+  // « Générer un mot de passe fort » (generateStrongPassword de l'original) : une lettre minuscule, une majuscule,
+  // un chiffre et un caractère spécial garantis, caractères ambigus exclus, tirage cryptographique puis mélange.
+  Alpine.magic("strongPassword", () => (length = 28) => {
+    const lowers = "abcdefghijkmnopqrstuvwxyz";
+    const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const digits = "23456789";
+    const specials = "!@#$%^&*()-_=+[]{};:,.?";
+    const all = lowers + uppers + digits + specials;
+    const rnd = new Uint32Array(length + length);
+    crypto.getRandomValues(rnd);
+    const chars = [lowers, uppers, digits, specials].map((set, i) => set[rnd[i] % set.length]);
+    for (let i = 4; i < length; i++) chars.push(all[rnd[i] % all.length]);
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = rnd[length + i] % (i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join("");
+  });
+
   // Saisie de tags (TagInput de l'original) : Entrée ou « + » ajoute, la croix retire.
   Alpine.data("tagInput", (initial = []) => ({
     tags: [...initial],
@@ -166,4 +216,12 @@ document.addEventListener("alpine:init", () => {
 document.addEventListener("click", (event) => {
   const dialog = event.target;
   if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
+});
+
+// Fermeture d'un dialog demandée par le serveur (HX-Trigger {"dialog-close": "<id>"}) : formulaire remis à zéro.
+document.addEventListener("dialog-close", (event) => {
+  const dialog = document.getElementById(event.detail.value);
+  if (!(dialog instanceof HTMLDialogElement)) return;
+  dialog.close();
+  dialog.querySelectorAll("form").forEach((form) => form.reset());
 });

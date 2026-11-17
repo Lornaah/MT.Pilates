@@ -173,7 +173,7 @@
         th:attr="aria-labelledby=${id + '-title'}">
   <div th:class="|max-w-${size != null ? size : 'lg'} max-h-[90vh] overflow-y-auto|">
     <header>
-      <h2 th:id="${id + '-title'}" th:text="${title}" class="font-display text-2xl"></h2>
+      <h2 th:id="${id + '-title'}" th:text="${title}" class="font-display text-2xl leading-8"></h2>
       <p th:if="${description != null}" th:text="${description}"></p>
     </header>
     <div class="space-y-4" th:insert="${body}"></div>

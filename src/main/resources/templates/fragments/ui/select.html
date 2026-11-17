@@ -1,0 +1,36 @@
+<!--/*
+  Select de Radix pour les cas où le déclencheur affiche du contenu riche (icône, badge coloré) : un <select>
+  natif ne sait pas le faire. Ailleurs, le <select class="select"> natif reste la règle.
+  `options` est un fragment composé de `option(...)` / `badgeOption(...)`.
+*/-->
+<div th:fragment="richSelect(id, name, value, icon, triggerClass, options)" class="rich-select"
+     th:classappend="${triggerClass}" th:data-value="${value}"
+     x-data="richSelect($el.dataset.value)" @click.outside="open = false" @keydown.escape.stop.prevent="close()">
+  <input type="hidden" x-ref="input" th:name="${name}" :value="value">
+  <button type="button" class="select-trigger" th:id="${id}" x-ref="trigger" @click="toggle()" :aria-expanded="open"
+          aria-haspopup="listbox">
+    <th:block th:if="${icon != null}" th:utext="${icons.svg(icon, 'h-3 w-3 mr-1')}"></th:block>
+    <span x-html="label"></span>
+    <th:block th:utext="${icons.svg('chevron-down', 'h-4 w-4 opacity-50')}"></th:block>
+  </button>
+  <div role="listbox" x-ref="list" x-show="open" x-cloak @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)"
+       @keydown.enter.prevent="choose(document.activeElement)" @keydown.space.prevent="choose(document.activeElement)" th:insert="${options}"></div>
+</div>
+
+<div th:fragment="option(value, text)" role="option" tabindex="-1" th:data-value="${value}" @click="choose($el)"
+     :aria-selected="value === $el.dataset.value">
+  <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span x-show="value === $el.closest('[role=option]').dataset.value" th:utext="${icons.svg('check', 'h-4 w-4')}"></span>
+  </span>
+  <span data-label th:text="${text}"></span>
+</div>
+
+<!--/* Option dont le libellé est une pastille : `variant` (badge) ou classes de couleur seules (`classes`). */-->
+<div th:fragment="badgeOption(value, text, variant, classes)" role="option" tabindex="-1" th:data-value="${value}"
+     @click="choose($el)" :aria-selected="value === $el.dataset.value">
+  <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+    <span x-show="value === $el.closest('[role=option]').dataset.value" th:utext="${icons.svg('check', 'h-4 w-4')}"></span>
+  </span>
+  <span data-label><span class="inline-flex items-center gap-2"><span th:class="${classes}"
+        th:attr="data-variant=${variant}" th:text="${text}"></span></span></span>
+</div>

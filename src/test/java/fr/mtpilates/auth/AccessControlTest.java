@@ -56,8 +56,7 @@ class AccessControlTest {
     void letsEveryStaffRoleOfTheInterfaceThroughTheStaffGate() throws Exception {
         for (final AppRole role : new AppRole[] {AppRole.COACH, AppRole.SETTER, AppRole.CLOSER, AppRole.MANAGER_COACH}) {
             final TestUsers.Account staff = users.create("staff", role);
-            // Pas encore de page derrière : la garde laisse passer, d'où la 404.
-            mvc.perform(get("/app/coach/members").with(staff.login())).andExpect(status().isNotFound());
+            mvc.perform(get("/app/coach/members").with(staff.login())).andExpect(status().isOk());
         }
     }
 
