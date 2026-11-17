@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Leads — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* Leads : vue (tableau / pipeline) et filtres du tableau sont un état d'affichage Alpine, conservé quand
+        le contenu est re-rendu après une action. */-->
+  <div x-data="{ view: 'table', search: '', status: 'all', source: 'all',
+                 matches(el) {
+                   const d = el.dataset; const q = this.search.trim().toLowerCase();
+                   if (this.status !== 'all' && d.status !== this.status) return false;
+                   if (this.source !== 'all' && d.source !== this.source) return false;
+                   return !q || d.search.includes(q);
+                 } }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Ventes', 'Leads',
+         'Capturez les leads, qualifiez-les et planifiez le rendez-vous de closing.', ~{::leadActions}, null, null, null)}"></div>
+    <th:block th:if="${false}">
+      <div th:fragment="leadActions" class="flex items-center gap-2">
+        <div class="inline-flex rounded-md border bg-card p-0.5">
+          <button type="button" class="btn h-8 px-3" data-size="sm" :data-variant="view === 'table' ? 'secondary' : 'ghost'" @click="view = 'table'">
+            <th:block th:utext="${icons.svg('list', 'h-4 w-4 mr-1.5')}"></th:block> Tableau
+          </button>
+          <button type="button" class="btn h-8 px-3" data-size="sm" :data-variant="view === 'kanban' ? 'secondary' : 'ghost'" @click="view = 'kanban'">
+            <th:block th:utext="${icons.svg('layout-grid', 'h-4 w-4 mr-1.5')}"></th:block> Pipeline
+          </button>
+        </div>
+        <button type="button" class="btn" data-variant="hero" hx-get="/app/prospects/new" hx-target="#prospect-dialog-slot" hx-swap="innerHTML">
+          <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouveau lead
+        </button>
+      </div>
+    </th:block>
+    <div th:replace="~{::content}"></div>
+    <div id="prospect-dialog-slot"></div>
+  </div>
+</th:block>
+
+<div th:fragment="content" id="prospects-content" class="container py-8 space-y-6">
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div th:replace="~{fragments/ui/components :: statCard('Total leads', ${stats.total()}, null, 'users', 'primary')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('À rappeler', ${stats.toCall()}, null, 'phone', 'accent')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('RDV à venir', ${stats.upcoming()}, null, 'calendar-clock', 'sage')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('Convertis', ${stats.converted()}, null, 'user-check', 'primary')}"></div>
+  </div>
+
+  <div x-show="view === 'table'" class="animate-fade-in" th:insert="~{::table}"></div>
+  <div x-show="view === 'kanban'" x-cloak class="prospect-pipeline w-full overflow-x-auto whitespace-nowrap pb-4 animate-fade-in">
+    <div class="flex gap-4">
+      <th:block th:each="col : ${columns}"><div th:replace="~{::column(${col})}"></div></th:block>
+    </div>
+  </div>
+</div>
+
+<div th:fragment="table" class="space-y-4">
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="relative flex-1 min-w-[220px]">
+      <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+      <input class="input pl-9" type="text" placeholder="Rechercher un lead…" x-model="search">
+    </div>
+    <select class="select w-[180px]" x-model="status" aria-label="Statut">
+      <option value="all" selected>Tous les statuts</option>
+      <option th:each="s : ${statuses}" th:value="${s}" th:text="${labels.prospectStatus(s)}"></option>
+    </select>
+    <select class="select w-[180px]" x-model="source" aria-label="Source">
+      <option value="all" selected>Toutes les sources</option>
+      <option th:each="s : ${sources}" th:value="${s}" th:text="${labels.prospectSource(s)}"></option>
+    </select>
+  </div>
+
+  <div class="rounded-2xl border bg-card overflow-hidden" x-data="{ get visible() { return [...$el.querySelectorAll('[data-lead]')].filter((el) => matches(el)).length; } }">
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Nom</th>
+            <th class="hidden lg:table-cell">Contact</th>
+            <th class="hidden md:table-cell">Objectifs</th>
+            <th>Source</th>
+            <th>Statut</th>
+            <th>Relance / RDV</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-if="visible === 0">
+            <tr><td colspan="8" class="text-center text-muted-foreground py-10">Aucun lead ne correspond à ces filtres.</td></tr>
+          </template>
+          <tr th:each="p : ${prospects}" data-lead x-show="matches($el)" th:data-status="${p.status()}" th:data-source="${p.source()}"
+              th:data-search="${p.search()}">
+            <td class="text-xs text-muted-foreground whitespace-nowrap" th:text="${p.createdOn()}"></td>
+            <td>
+              <div th:replace="~{::memberLink(${p}, 'font-medium block')}"></div>
+              <span th:if="${p.tag().isPresent()}" class="text-xs text-muted-foreground" th:text="${p.tag().get()}"></span>
+            </td>
+            <td class="hidden lg:table-cell text-xs text-muted-foreground">
+              <div th:text="${p.email().orElse('—')}"></div>
+              <div th:text="${p.phone().orElse('')}"></div>
+            </td>
+            <td class="hidden md:table-cell max-w-[220px]">
+              <span class="text-xs text-muted-foreground line-clamp-2" th:text="${p.objectives().orElse('—')}"></span>
+            </td>
+            <td class="text-sm" th:text="${labels.prospectSource(p.source().isEmpty() ? 'other' : p.source())}"></td>
+            <td><span th:replace="~{::statusBadge(${p.status()})}"></span></td>
+            <td class="text-xs whitespace-nowrap">
+              <span th:if="${p.appointment().isPresent()}" class="inline-flex items-center gap-1 text-foreground">
+                <th:block th:utext="${icons.svg('calendar-clock', 'h-3.5 w-3.5 text-sage')}"></th:block><th:block th:text="${p.appointment().get()}"></th:block>
+              </span>
+              <span th:if="${p.appointment().isEmpty() and p.followup().isPresent()}" class="inline-flex items-center gap-1 text-muted-foreground">
+                <th:block th:utext="${icons.svg('phone', 'h-3.5 w-3.5')}"></th:block><th:block th:text="${p.followup().get()}"></th:block>
+              </span>
+              <span th:if="${p.appointment().isEmpty() and p.followup().isEmpty()}" class="text-muted-foreground">—</span>
+            </td>
+            <td class="text-right">
+              <div class="inline-flex gap-1 justify-end">
+                <a th:if="${p.reminderWhatsapp().isPresent()}" class="btn" data-variant="ghost" data-size="icon" title="Relancer par WhatsApp"
+                   th:href="${p.reminderWhatsapp().get()}" target="_blank" rel="noopener noreferrer"
+                   th:utext="${icons.svg('message-circle', 'h-4 w-4 text-success')}"></a>
+                <button th:if="${p.convertible()}" type="button" class="btn" data-variant="ghost" data-size="icon" title="Inscrire le client"
+                        th:attr="hx-get=@{/app/prospects/{id}/convert(id=${p.id()})}" hx-target="#prospect-dialog-slot" hx-swap="innerHTML"
+                        th:utext="${icons.svg('user-plus', 'h-4 w-4 text-primary')}"></button>
+                <button type="button" class="btn" data-variant="ghost" data-size="icon" title="Modifier"
+                        th:attr="hx-get=@{/app/prospects/{id}/edit(id=${p.id()})}" hx-target="#prospect-dialog-slot" hx-swap="innerHTML"
+                        th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!--/* KanbanColumn + ProspectCard. */-->
+<div th:fragment="column(col)" class="min-w-[280px] w-[280px] shrink-0">
+  <div class="flex items-center justify-between mb-3">
+    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+          th:classappend="${col.status() == 'new'} ? 'bg-primary/10 text-primary' : (${col.status() == 'to_call'} ? 'bg-accent/15 text-accent-foreground'
+                          : (${col.status() == 'trial'} ? 'bg-sage/15 text-foreground' : (${col.status() == 'converted'} ? 'bg-success/15 text-success-foreground' : 'bg-muted text-muted-foreground')))">
+      <th:block th:text="${labels.prospectColumn(col.status())}"></th:block>
+      <span class="badge rounded-full text-[10px] leading-4 px-1.5" data-variant="secondary" th:text="${col.prospects().size()}"></span>
+    </span>
+  </div>
+  <div class="space-y-2">
+    <p th:if="${col.prospects().isEmpty()}" class="text-xs text-muted-foreground text-center py-4 italic">Vide</p>
+    <div th:each="p : ${col.prospects()}" class="card border-l-4 hover:shadow-soft transition-shadow"
+         th:classappend="${p.status() == 'new'} ? 'border-l-primary' : (${p.status() == 'to_call'} ? 'border-l-accent'
+                         : (${p.status() == 'trial'} ? 'border-l-sage' : (${p.status() == 'converted'} ? 'border-l-success' : 'border-l-muted-foreground')))">
+      <section class="p-3 space-y-2">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <div th:replace="~{::memberLink(${p}, 'font-medium text-sm truncate block')}"></div>
+            <div class="text-[10px] text-muted-foreground"
+                 th:text="${p.age().isPresent() ? p.age().get() + ' ans · ' : ''} + ${labels.prospectSource(p.source().isEmpty() ? 'other' : p.source())}"></div>
+          </div>
+          <span th:if="${p.tag().isPresent()}" class="badge text-[10px] leading-normal shrink-0" data-variant="secondary" th:text="${p.tag().get()}"></span>
+        </div>
+        <div class="space-y-1 text-xs">
+          <a th:if="${p.phone().isPresent()}" th:href="|tel:${p.phone().get()}|" class="flex items-center gap-1.5 text-muted-foreground hover:text-primary">
+            <th:block th:utext="${icons.svg('phone', 'h-3 w-3')}"></th:block><span class="truncate" th:text="${p.phone().get()}"></span>
+          </a>
+          <a th:if="${p.email().isPresent()}" th:href="|mailto:${p.email().get()}|" class="flex items-center gap-1.5 text-muted-foreground hover:text-primary">
+            <th:block th:utext="${icons.svg('mail', 'h-3 w-3')}"></th:block><span class="truncate" th:text="${p.email().get()}"></span>
+          </a>
+          <div th:if="${p.followup().isPresent()}" class="flex items-center gap-1.5 text-muted-foreground">
+            <th:block th:utext="${icons.svg('calendar-clock', 'h-3 w-3')}"></th:block><th:block th:text="${p.followup().get()}"></th:block>
+          </div>
+        </div>
+        <div th:if="${p.notes().isPresent()}" class="text-[10px] text-muted-foreground bg-muted/40 rounded-sm p-1.5 line-clamp-2" th:text="${p.notes().get()}"></div>
+        <div class="flex items-center justify-between pt-1 border-t border-border/50">
+          <select class="select h-7 w-28 text-[10px] py-0" name="status" aria-label="Statut"
+                  th:attr="hx-post=@{/app/prospects/{id}/status(id=${p.id()})}" hx-trigger="change" hx-target="#prospects-content" hx-swap="outerHTML">
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${labels.prospectStatus(s)}" th:selected="${s == p.status()}"></option>
+          </select>
+          <div class="flex gap-0.5">
+            <button th:if="${p.status() != 'converted' and p.email().isPresent()}" type="button" class="btn h-7 w-7 p-0 text-success" data-variant="ghost"
+                    data-size="sm" title="Convertir en membre" th:attr="hx-get=@{/app/prospects/{id}/convert(id=${p.id()})}"
+                    hx-target="#prospect-dialog-slot" hx-swap="innerHTML" th:utext="${icons.svg('user-plus', 'h-3 w-3')}"></button>
+            <button type="button" class="btn h-7 w-7 p-0" data-variant="ghost" data-size="sm" title="Modifier"
+                    th:attr="hx-get=@{/app/prospects/{id}/edit(id=${p.id()})}" hx-target="#prospect-dialog-slot" hx-swap="innerHTML"
+                    th:utext="${icons.svg('pencil', 'h-3 w-3')}"></button>
+            <th:block th:with="dialogId=|delete-prospect-${p.id()}|">
+              <button type="button" class="btn h-7 w-7 p-0 text-destructive" data-variant="ghost" data-size="sm" title="Supprimer"
+                      th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                      th:utext="${icons.svg('trash-2', 'h-3 w-3')}"></button>
+              <dialog class="alert-dialog whitespace-normal" th:id="${dialogId}">
+                <div>
+                  <header><h2>Supprimer ce prospect ?</h2><p><strong th:text="${p.name()}"></strong> sera définitivement supprimé.</p></header>
+                  <footer>
+                    <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                    <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/prospects/{id}(id=${p.id()})}"
+                            hx-target="#prospects-content" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                  </footer>
+                </div>
+              </dialog>
+            </th:block>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <th:block th:if="${col.status() == 'converted'}" th:utext="${icons.svg('arrow-right', 'h-4 w-4 text-muted-foreground mt-2 mx-auto hidden lg:block')}"></th:block>
+</div>
+
+<div th:fragment="memberLink(p, classes)" th:remove="tag">
+  <a th:if="${p.memberId().isPresent()}" th:href="@{/app/coach/members/{id}(id=${p.memberId().get()})}"
+     th:class="|hover:text-primary hover:underline underline-offset-2 transition-colors ${classes}|" th:text="${p.name()}"></a>
+  <span th:unless="${p.memberId().isPresent()}" th:class="${classes}" th:text="${p.name()}"></span>
+</div>
+
+<span th:fragment="statusBadge(status)" class="badge" data-variant="outline"
+      th:classappend="${status == 'new'} ? 'bg-primary/15 text-primary border-primary/30' : (${status == 'to_call'} ? 'bg-accent/15 text-accent-foreground border-accent/30'
+                      : (${status == 'trial'} ? 'bg-sage/15 text-foreground border-sage/30' : (${status == 'converted'} ? 'bg-success/15 text-success-foreground border-success/30' : 'bg-muted text-muted-foreground border-border')))"
+      th:text="${labels.prospectStatus(status)}"></span>
+</body>
+</html>

@@ -154,6 +154,10 @@
   .toaster .toast[data-category='error'] .toast-content svg { @apply text-destructive; }
   .toaster .toast[data-category='success'] .toast-content svg { @apply text-success; }
 
+  /* ScrollArea Radix du pipeline : barre de défilement visible au survol seulement. */
+  .prospect-pipeline { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  .prospect-pipeline:hover { scrollbar-color: var(--border) transparent; }
+
   /* ---------------------------------------------- RecipeCard (couleurs à opacité de l'original) */
   .recipe-card { box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 4%, transparent); }
   .recipe-card:hover { box-shadow: 0 24px 60px -30px color-mix(in srgb, var(--bordeaux) 35%, transparent); }

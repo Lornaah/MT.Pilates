@@ -1,0 +1,89 @@
+<!--/* ProspectFormDialog et ConvertProspectDialog, communs aux pages Leads et Closing (`from`). */-->
+<dialog th:fragment="prospectDialog" id="prospect-form" class="dialog" data-no-select aria-labelledby="prospect-form-title" x-data x-init="$el.showModal()"
+        th:with="f=${form}, target=${from == 'calls'} ? '#calls-content' : '#prospects-content'">
+  <form class="max-w-lg max-h-[90vh] overflow-y-auto" th:attr="hx-target=${target},
+        hx-post=${f.id().isPresent() ? '/app/prospects/' + f.id().get() : '/app/prospects'}" hx-swap="outerHTML"
+        hx-indicator="find button[type=submit]">
+    <input type="hidden" name="from" th:value="${from}">
+    <header><h2 id="prospect-form-title" class="font-display text-2xl leading-8"
+                th:text="${f.id().isPresent()} ? 'Modifier le prospect' : 'Nouveau prospect'"></h2></header>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div th:replace="~{::field('prospect-first-name', 'Prénom', true, 'firstName', ${f.firstName()}, 'text', null)}"></div>
+        <div th:replace="~{::field('prospect-last-name', 'Nom', false, 'lastName', ${f.lastName()}, 'text', null)}"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div th:replace="~{::field('prospect-email', 'Email', false, 'email', ${f.email()}, 'email', null)}"></div>
+        <div th:replace="~{::field('prospect-phone', 'Téléphone', false, 'phone', ${f.phone()}, 'tel', null)}"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div th:replace="~{::field('prospect-age', 'Âge', false, 'age', ${f.age()}, 'number', null)}"></div>
+        <div class="space-y-2">
+          <label class="label" for="prospect-source">Source</label>
+          <select class="select" id="prospect-source" name="source">
+            <option th:each="s : ${sources}" th:value="${s}" th:text="${labels.prospectSource(s)}" th:selected="${s == f.source()}"></option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="prospect-status">Statut</label>
+          <select class="select" id="prospect-status" name="status">
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${labels.prospectStatus(s)}" th:selected="${s == f.status()}"></option>
+          </select>
+        </div>
+      </div>
+      <div th:replace="~{::field('prospect-tag', 'Tag / étiquette', false, 'tag', ${f.tag()}, 'text', 'Ex: Vue Marion, Story Insta…')}"></div>
+      <div class="space-y-2">
+        <label class="label" for="prospect-objectives">Objectifs du lead</label>
+        <textarea class="textarea" id="prospect-objectives" name="objectives" rows="2"
+                  placeholder="Ex: perte de poids, reprise de sport, prépa course…" th:text="${f.objectives()}"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <label class="label" for="prospect-followup">Relance prévue</label>
+          <div th:replace="~{fragments/ui/components :: datePicker('prospect-followup', 'nextFollowupAt', ${f.nextFollowupAt()}, 'Relance prévue', true, null)}"></div>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="prospect-appointment">RDV de closing</label>
+          <div th:replace="~{fragments/ui/components :: datePicker('prospect-appointment', 'appointmentAt', ${f.appointmentAt()}, 'RDV de closing', true, null)}"></div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="prospect-notes">Notes</label>
+        <textarea class="textarea" id="prospect-notes" name="notes" rows="3" th:text="${f.notes()}"></textarea>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<div th:fragment="field(id, label, required, name, value, type, placeholder)" class="space-y-2">
+  <label class="label" th:for="${id}"><th:block th:text="${label}"></th:block><span th:if="${required}" class="text-destructive ml-0.5">*</span></label>
+  <input class="input" th:id="${id}" th:type="${type}" th:name="${name}" th:value="${value}" th:placeholder="${placeholder}">
+</div>
+
+<dialog th:fragment="convertDialog" id="prospect-convert" class="dialog" aria-labelledby="prospect-convert-title" x-data x-init="$el.showModal()">
+  <form class="max-w-lg max-h-[90vh] overflow-y-auto" th:attr="hx-post=@{/app/prospects/{id}/convert(id=${prospect.id()})},
+        hx-target=${from == 'calls'} ? '#calls-content' : '#prospects-content'" hx-swap="outerHTML" hx-indicator="find button[type=submit]">
+    <input type="hidden" name="from" th:value="${from}">
+    <header><h2 id="prospect-convert-title" class="font-display text-2xl leading-8">Convertir en membre</h2></header>
+    <div class="space-y-4">
+      <p class="text-sm text-muted-foreground"
+         th:text="|Un compte membre sera créé avec l'email de ${prospect.firstName()}. Vous pourrez ensuite lui communiquer ses identifiants.|"></p>
+      <div class="space-y-2">
+        <label class="label" for="convert-coach">Coach assigné</label>
+        <select class="select" id="convert-coach" name="coachId">
+          <option value="none" selected>Aucun coach</option>
+          <option th:each="c : ${coaches}" th:value="${c.id()}" th:text="${c.name()}"></option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="convert-password">Mot de passe temporaire<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="convert-password" type="text" name="password">
+        <p class="text-xs text-muted-foreground">Communiquez-le au nouveau membre. 8 caractères minimum.</p>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter('Créer le compte membre')}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>

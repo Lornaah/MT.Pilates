@@ -881,11 +881,12 @@ document.addEventListener("dialog-close", (event) => {
 });
 
 // Radix (FocusScope) sélectionne le texte du premier champ focalisé à l'ouverture d'un dialog : même rendu ici.
+// `data-no-select` : dialogs dont l'original remplissait les champs après l'ouverture (rien n'était sélectionné).
 const nativeShowModal = HTMLDialogElement.prototype.showModal;
 HTMLDialogElement.prototype.showModal = function showModal() {
   nativeShowModal.call(this);
   const focused = document.activeElement;
-  if (focused instanceof HTMLInputElement && this.contains(focused) && typeof focused.select === "function") {
+  if (focused instanceof HTMLInputElement && this.contains(focused) && !this.hasAttribute("data-no-select")) {
     focused.select();
   }
 };

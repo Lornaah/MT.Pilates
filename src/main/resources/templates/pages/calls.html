@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Closing — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Ventes', 'Closing',
+       'Les rendez-vous à honorer, les leads à rappeler et les essais à conclure.', null, null, null, null)}"></div>
+  <div th:replace="~{::content}"></div>
+  <div id="prospect-dialog-slot"></div>
+</th:block>
+
+<div th:fragment="content" id="calls-content" class="container py-8 space-y-8">
+  <div class="grid sm:grid-cols-3 gap-4">
+    <div th:replace="~{fragments/ui/components :: statCard('RDV à venir', ${calls.upcoming().size()}, null, 'calendar-clock', 'sage')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('À rappeler', ${calls.toCall().size()}, null, 'phone-call', 'accent')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('En essai', ${calls.trial().size()}, null, 'user-plus', 'primary')}"></div>
+  </div>
+  <div th:replace="~{::callSection('Rendez-vous planifiés', ${calls.upcoming()}, 'calendar-clock', 'Aucun RDV à venir', #{calls.empty.upcoming})}"></div>
+  <div th:replace="~{::callSection('À rappeler', ${calls.toCall()}, 'phone-call', 'Pile de rappel vide', 'Tous les leads à rappeler ont été traités.')}"></div>
+  <div th:replace="~{::callSection('En essai à conclure', ${calls.trial()}, 'user-plus', 'Aucun essai en cours', 'Les leads en essai apparaîtront ici pour être convertis.')}"></div>
+</div>
+
+<section th:fragment="callSection(title, rows, icon, emptyTitle, emptyMessage)" class="space-y-3">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground" th:text="${title}"></h2>
+  <th:block th:if="${rows.isEmpty()}">
+    <div th:replace="~{fragments/ui/components :: emptyState(${icon}, ${emptyTitle}, ${emptyMessage}, null)}"></div>
+  </th:block>
+  <div th:unless="${rows.isEmpty()}" class="space-y-2">
+    <div th:each="r : ${rows}" th:with="p=${r.prospect()}" class="flex items-center gap-3 rounded-xl border bg-card p-3 hover:bg-muted/30 transition">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div th:replace="~{pages/prospects :: memberLink(${p}, 'font-medium truncate')}"></div>
+          <span th:replace="~{pages/prospects :: statusBadge(${p.status()})}"></span>
+        </div>
+        <div class="text-xs text-muted-foreground mt-0.5 flex items-center gap-3 flex-wrap">
+          <span th:if="${p.phone().isPresent()}" th:text="${p.phone().get()}"></span>
+          <span th:if="${p.email().isPresent()}" class="truncate" th:text="${p.email().get()}"></span>
+          <span th:if="${r.when().isPresent()}" class="inline-flex items-center gap-1 text-foreground">
+            <th:block th:utext="${icons.svg('calendar-clock', 'h-3.5 w-3.5')}"></th:block><th:block th:text="${r.when().get()}"></th:block>
+          </span>
+        </div>
+        <p th:if="${p.objectives().isPresent()}" class="text-xs text-muted-foreground mt-1 line-clamp-1" th:text="${p.objectives().get()}"></p>
+      </div>
+      <div class="flex items-center gap-1">
+        <th:block th:if="${p.phone().isPresent()}">
+          <a class="btn" data-variant="ghost" data-size="icon" title="Appeler" th:href="|tel:${p.phone().get()}|" th:utext="${icons.svg('phone', 'h-4 w-4')}"></a>
+          <a class="btn" data-variant="ghost" data-size="icon" title="WhatsApp" th:href="${p.closingWhatsapp().get()}" target="_blank" rel="noopener noreferrer"
+             th:utext="${icons.svg('message-circle', 'h-4 w-4 text-success')}"></a>
+        </th:block>
+        <button th:if="${p.convertible()}" type="button" class="btn" data-variant="ghost" data-size="icon" title="Inscrire le client"
+                th:attr="hx-get=@{/app/prospects/{id}/convert(id=${p.id()}, from='calls')}" hx-target="#prospect-dialog-slot" hx-swap="innerHTML"
+                th:utext="${icons.svg('user-plus', 'h-4 w-4 text-primary')}"></button>
+        <button type="button" class="btn" data-variant="ghost" data-size="icon" title="Modifier"
+                th:attr="hx-get=@{/app/prospects/{id}/edit(id=${p.id()}, from='calls')}" hx-target="#prospect-dialog-slot" hx-swap="innerHTML"
+                th:utext="${icons.svg('pencil', 'h-4 w-4')}"></button>
+      </div>
+    </div>
+  </div>
+</section>
+</body>
+</html>
