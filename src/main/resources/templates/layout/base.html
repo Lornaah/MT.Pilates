@@ -36,6 +36,6 @@
 </head>
 <body th:attr="hx-headers=${_csrf != null} ? |{&quot;${_csrf.headerName}&quot;: &quot;${_csrf.token}&quot;}| : null">
   <th:block layout:fragment="content"></th:block>
-  <div th:replace="~{fragments/ui/toaster :: toaster(${toast})}"></div>
+  <div th:replace="~{fragments/ui/toaster :: toaster}"></div>
 </body>
 </html>

@@ -13,7 +13,7 @@ document.addEventListener("alpine:init", () => {
     toasts: [],
     nextId: 0,
     init() {
-      if (initial && initial.message) this.add(initial);
+      (Array.isArray(initial) ? initial : []).forEach((toast) => this.add(toast));
     },
     add({ message, category = "info" }) {
       const id = this.nextId++;

@@ -1,0 +1,55 @@
+<!--/* MemberSummaryForm de l'original : utilisé par Ma fiche et la fiche coach (titre « Mon résumé » dans les deux cas). */-->
+<div th:fragment="summaryForm(profile, closable)" class="card">
+  <header class="flex flex-row items-center justify-between gap-4">
+    <h3 class="font-display text-xl leading-7">Mon résumé</h3>
+    <button th:if="${closable}" type="button" class="btn" data-variant="ghost" data-size="sm" @click="editingSummary = false">
+      <th:block th:utext="${icons.svg('x', 'h-4 w-4 mr-2')}"></th:block>
+      Fermer l'édition
+    </button>
+  </header>
+  <section class="space-y-5">
+    <div class="space-y-2">
+      <label class="label">Dominante / Objectifs</label>
+      <div th:replace="~{fragments/ui/components :: objectiveSelector('objectives', ${profile.objectives()})}"></div>
+    </div>
+    <div class="space-y-2">
+      <label class="label">Allergies</label>
+      <div th:replace="~{fragments/ui/components :: tagInput('allergies', ${profile.allergies()}, 'Arachide, lactose…', 'destructive')}"></div>
+    </div>
+    <div class="space-y-2">
+      <label class="label">Pathologies</label>
+      <div th:replace="~{fragments/ui/components :: tagInput('pathologies', ${profile.pathologies()}, 'Hernie discale, asthme…', 'secondary')}"></div>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="space-y-2">
+        <label class="label" for="summary-sedentarity">Sédentarité au travail</label>
+        <select th:replace="~{fragments/profile/summary :: choice('summary-sedentarity', 'workSedentarity', ${profileOptions.sedentarity()}, ${profile.workSedentarity()})}"></select>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="summary-body-type">Morphotype</label>
+        <select th:replace="~{fragments/profile/summary :: choice('summary-body-type', 'bodyType', ${profileOptions.bodyTypes()}, ${profile.bodyType()})}"></select>
+      </div>
+    </div>
+    <div class="space-y-2">
+      <label class="label" for="summary-history">Historique sportif</label>
+      <textarea class="textarea" id="summary-history" name="sportHistory" rows="3"
+                placeholder="Sports pratiqués, blessures, expérience d'entraînement…" th:text="${profile.sportHistory()}"></textarea>
+    </div>
+    <div class="space-y-2">
+      <label class="label" for="summary-motivation">Pourquoi avoir fait appel à un coach ?</label>
+      <textarea class="textarea" id="summary-motivation" name="coachingMotivation" rows="3" th:text="${profile.coachingMotivation()}"></textarea>
+    </div>
+    <div class="space-y-2">
+      <label class="label" for="summary-free">Mon résumé libre</label>
+      <textarea class="textarea" id="summary-free" name="externalSummary" rows="4"
+                placeholder="Tout ce que tu souhaites partager avec ton coach." th:text="${profile.externalSummary()}"></textarea>
+    </div>
+  </section>
+</div>
+
+<!--/* Liste déroulante avec l'invite « Choisir… » de l'original (SelectValue placeholder). */-->
+<select th:fragment="choice(id, name, options, selected)" class="select" th:id="${id}" th:name="${name}">
+  <option value="" disabled hidden th:selected="${selected == null or selected.isEmpty()}">Choisir…</option>
+  <option th:each="option : ${options}" th:value="${option.key}" th:text="${option.value}"
+          th:selected="${option.key == selected}"></option>
+</select>

@@ -19,6 +19,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ToastResponses {
 
     public static final String FLASH_ATTRIBUTE = "toast";
+    /** Plusieurs toasts à afficher à l'arrivée sur la page suivante. */
+    public static final String FLASH_LIST_ATTRIBUTE = "toasts";
     private static final String HX_TRIGGER = "HX-Trigger";
 
     private final ObjectWriter headerWriter;

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Ma fiche — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Ma fiche', 'Vos informations', 'Gardez votre fiche à jour pour un suivi personnalisé.', ~{::profileStatus}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <span th:fragment="profileStatus" class="badge rounded-full text-sm"
+          th:with="s=${profile.status()}"
+          th:attr="data-variant=${s == 'active' ? 'success' : (s == 'paused' ? 'warm' : (s == 'finished' ? 'outline' : 'secondary'))}"
+          th:text="${labels.status(s)}"></span>
+  </th:block>
+
+  <form id="profile-form" class="container py-8 max-w-3xl space-y-6" hx-post="/app/profile" hx-swap="none"
+        hx-indicator="#profile-save">
+    <div class="card">
+      <header><h3 class="font-display text-xl leading-7">Informations personnelles</h3></header>
+      <section class="space-y-4">
+        <div th:fragment="avatar" id="profile-avatar" class="group/avatar flex items-center gap-4 mb-2">
+          <button type="button" class="relative group rounded-full overflow-hidden" aria-label="Changer la photo de profil"
+                  onclick="document.getElementById('avatar-file').click()">
+            <th:block th:replace="~{fragments/ui/components :: userAvatar(${profile.avatarUrl()}, ${profile.initial()}, 'xl')}"></th:block>
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                 th:utext="${icons.svg('camera', 'h-5 w-5 text-white')}"></div>
+          </button>
+          <input id="avatar-file" type="file" name="file" accept="image/*" class="hidden"
+                 hx-post="/app/profile/avatar" hx-encoding="multipart/form-data" hx-params="file"
+                 hx-trigger="change" hx-target="#profile-avatar" hx-swap="outerHTML" hx-indicator="#profile-avatar">
+          <div>
+            <p class="font-medium" th:text="|${profile.firstName()} ${profile.lastName()}|"></p>
+            <p class="text-sm text-muted-foreground">
+              <span class="group-[.htmx-request]/avatar:hidden">Cliquez sur la photo pour la changer</span>
+              <span class="hidden group-[.htmx-request]/avatar:inline">Envoi en cours…</span>
+            </p>
+          </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="label" for="profile-first-name">Prénom</label>
+            <input class="input" id="profile-first-name" type="text" name="firstName" th:value="${profile.firstName()}">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="profile-last-name">Nom</label>
+            <input class="input" id="profile-last-name" type="text" name="lastName" th:value="${profile.lastName()}">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="profile-phone">Téléphone</label>
+            <input class="input" id="profile-phone" type="text" name="phone" th:value="${profile.phone()}">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="profile-birth">Date de naissance</label>
+            <div th:replace="~{fragments/ui/components :: datePicker('profile-birth', 'dateOfBirth', ${profile.dateOfBirth()}, 'Date de naissance', false, null)}"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="card">
+      <header><h3 class="font-display text-xl leading-7">Suivi sportif</h3></header>
+      <section class="space-y-4">
+        <div class="space-y-2">
+          <label class="label" for="profile-goals">Mes objectifs</label>
+          <textarea class="textarea" id="profile-goals" name="goals" rows="3"
+                    placeholder="Renforcement du dos, posture, retour au sport…" th:text="${profile.goals()}"></textarea>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-4">
+          <div class="space-y-2">
+            <label class="label" for="profile-height">Taille (cm)</label>
+            <input class="input" id="profile-height" type="number" name="heightCm" th:value="${profile.heightCm()}">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="profile-weight">Poids (kg)</label>
+            <input class="input" id="profile-weight" type="number" name="weightKg" th:value="${profile.weightKg()}">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="profile-weekly">Séances/sem. visées</label>
+            <input class="input" id="profile-weekly" type="number" name="weeklyTargetSessions" th:value="${profile.weeklyTargetSessions()}">
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="profile-bio">À propos de moi</label>
+          <textarea class="textarea" id="profile-bio" name="bio" rows="3" th:text="${profile.bio()}"></textarea>
+        </div>
+      </section>
+    </div>
+
+    <div th:replace="~{fragments/profile/summary :: summaryForm(${profile}, false)}"></div>
+
+    <th:block th:replace="~{fragments/profile/documents :: memberDocumentsSlot}"></th:block>
+
+    <div th:if="${!profile.coachNotes().isEmpty()}" class="card border-primary/20 bg-primary/5">
+      <header><h3 class="font-display text-xl leading-7">Notes de votre coach</h3></header>
+      <section><p class="text-sm whitespace-pre-wrap" th:text="${profile.coachNotes()}"></p></section>
+    </div>
+
+    <button id="profile-save" type="submit" class="btn group" data-variant="hero" data-size="lg">
+      <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+      <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+    </button>
+  </form>
+</th:block>
+</body>
+</html>

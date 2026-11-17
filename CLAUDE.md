@@ -88,6 +88,8 @@ L'original est en Tailwind v3, la cible en v4. En recopiant une classe, applique
 - Un littéral passé à un fragment ne peut pas contenir d'apostrophe : passer par `messages.properties` (`#{cle}`).
 - `th:replace` / `th:insert` passent avant `th:if` sur le même élément : envelopper dans `<th:block th:if>`.
 - Pas de lambda ni de `@bean` dans les expressions : préparer la valeur côté Java (modèle, `@ControllerAdvice`).
+- `th:attr` refuse les noms d'attributs Alpine (`@click`, `x-bind:…`) et les expressions `T(...)` sont interdites :
+  passer les valeurs dynamiques en `th:data-*` et les lire dans Alpine via `$el.dataset`.
 - En-têtes HTMX (`HX-Trigger`) : ASCII uniquement, `ToastResponses` échappe déjà le JSON.
 
 ## Thèmes
