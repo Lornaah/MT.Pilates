@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Annonces — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Annonces', 'Communique avec tes membres : in-app, email ou push.', ~{::newAnnouncement}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <button th:fragment="newAnnouncement" type="button" class="btn" data-variant="hero"
+            hx-get="/app/coach/announcements/new" hx-target="#announcement-dialog-slot" hx-swap="innerHTML">
+      <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouvelle annonce
+    </button>
+  </th:block>
+  <div class="container py-8 space-y-6" x-data="{ tab: 'published' }">
+    <div th:replace="~{::tabs}"></div>
+    <div id="announcement-dialog-slot"></div>
+  </div>
+</th:block>
+
+<div th:fragment="tabs" id="announcement-tabs" class="tabs">
+  <nav role="tablist" class="flex w-full overflow-x-auto justify-start sm:w-auto sm:flex-wrap sm:overflow-visible">
+    <button type="button" role="tab" class="shrink-0 gap-1.5" :aria-selected="tab === 'drafts'" @click="tab = 'drafts'">
+      Brouillons <span class="badge rounded-full text-[10px] px-1.5 py-0 h-4 bg-muted" data-variant="secondary" th:text="${groups.drafts().size()}"></span>
+    </button>
+    <button type="button" role="tab" class="shrink-0 gap-1.5" :aria-selected="tab === 'scheduled'" @click="tab = 'scheduled'">
+      Programmées <span class="badge rounded-full text-[10px] px-1.5 py-0 h-4 bg-setter/15 text-setter" data-variant="secondary" th:text="${groups.scheduled().size()}"></span>
+    </button>
+    <button type="button" role="tab" class="shrink-0 gap-1.5" :aria-selected="tab === 'published'" @click="tab = 'published'">
+      Publiées <span class="badge rounded-full text-[10px] px-1.5 py-0 h-4 bg-sage/20 text-sage-foreground" data-variant="secondary" th:text="${groups.published().size()}"></span>
+    </button>
+  </nav>
+  <div role="tabpanel" class="mt-4" x-show="tab === 'drafts'" x-cloak><div th:replace="~{::list(${groups.drafts()})}"></div></div>
+  <div role="tabpanel" class="mt-4" x-show="tab === 'scheduled'" x-cloak><div th:replace="~{::list(${groups.scheduled()})}"></div></div>
+  <div role="tabpanel" class="mt-4" x-show="tab === 'published'"><div th:replace="~{::list(${groups.published()})}"></div></div>
+</div>
+
+<div th:fragment="list(items)">
+  <th:block th:if="${items.isEmpty()}">
+    <div th:replace="~{fragments/ui/components :: emptyState('megaphone', 'Aucune annonce', 'Crée ta première annonce pour communiquer avec tes membres.', null)}"></div>
+  </th:block>
+  <div th:unless="${items.isEmpty()}" class="space-y-3">
+    <div th:each="a : ${items}" class="card">
+      <section class="pt-5 pb-4 flex flex-col md:flex-row gap-4">
+        <img th:if="${a.coverUrl().isPresent()}" th:src="${a.coverUrl().get()}" alt="" class="h-24 w-full md:w-40 object-cover rounded-md">
+        <div class="flex-1 min-w-0 space-y-2">
+          <div class="flex items-start justify-between gap-3">
+            <div class="font-display text-lg leading-tight" th:text="${a.title()}"></div>
+            <div class="flex flex-wrap gap-1">
+              <span class="badge" data-variant="secondary" th:text="${a.channel()}"></span>
+              <span class="badge" data-variant="outline" th:text="${a.target()}"></span>
+              <span th:if="${a.recurring()}" class="badge">Récurrent</span>
+            </div>
+          </div>
+          <div class="text-xs text-muted-foreground" th:text="|Publié le ${a.publishedLabel()}|"></div>
+          <div class="prose prose-sm max-w-none line-clamp-2 text-sm" th:utext="${a.bodyHtml()}"></div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" class="btn" data-variant="outline" data-size="sm"
+                    th:attr="hx-get=@{/app/coach/announcements/{id}/edit(id=${a.id()})}" hx-target="#announcement-dialog-slot" hx-swap="innerHTML">
+              <th:block th:utext="${icons.svg('pencil', 'h-4 w-4')}"></th:block> Éditer
+            </button>
+            <th:block th:with="dialogId=|delete-announcement-${a.id()}|">
+              <button type="button" class="btn text-destructive hover:text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                      th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                      th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+              <dialog class="alert-dialog" th:id="${dialogId}">
+                <div>
+                  <header><h2 th:text="#{announcements.delete.title}"></h2><p>Cette action est définitive.</p></header>
+                  <footer>
+                    <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                    <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/announcements/{id}(id=${a.id()})}"
+                            hx-target="#announcement-tabs" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+                  </footer>
+                </div>
+              </dialog>
+            </th:block>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog th:fragment="announcementDialog" id="announcement-form" class="dialog" aria-labelledby="announcement-form-title"
+        x-data x-init="$el.showModal()" th:with="f=${form}">
+  <form class="max-w-2xl max-h-[90vh] overflow-y-auto" hx-target="#announcement-tabs" hx-swap="outerHTML" hx-indicator="find button[type=submit]"
+        th:attr="hx-post=${f.id().isPresent() ? '/app/coach/announcements/' + f.id().get() : '/app/coach/announcements'}"
+        th:data-target="${f.target()}" th:data-recurring="${f.recurring()}" th:data-freq="${f.recurrenceFreq()}"
+        x-data="{ target: $el.dataset.target, recurring: $el.dataset.recurring === 'true', freq: $el.dataset.freq, preview: false }">
+    <header>
+      <h2 id="announcement-form-title" class="font-display text-2xl leading-8"
+          th:text="${f.id().isPresent() ? #messages.msg('announcements.edit') : 'Nouvelle annonce'}"></h2>
+    </header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="announcement-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+        <input class="input" id="announcement-title" type="text" name="title" th:value="${f.title()}" required>
+      </div>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="label" for="announcement-body">Contenu (markdown) <span class="text-destructive">*</span></label>
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="preview = !preview"
+                  hx-post="/app/coach/announcements/preview" hx-include="#announcement-body" hx-target="#announcement-preview" hx-swap="innerHTML">
+            <th:block th:utext="${icons.svg('eye', 'h-4 w-4')}"></th:block> <span x-text="preview ? 'Édition' : 'Aperçu'">Aperçu</span>
+          </button>
+        </div>
+        <div x-show="preview" x-cloak id="announcement-preview" class="prose prose-sm max-w-none border rounded-md p-3 min-h-32 bg-muted/30"></div>
+        <div x-show="!preview" class="space-y-2">
+          <textarea class="textarea" id="announcement-body" name="body" rows="8" placeholder="**Bonjour à tous !** Voici les nouveautés…"
+                    th:text="${f.body()}"></textarea>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label">Image de couverture</label>
+        <div th:replace="~{::cover(${f.coverUrl()})}"></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <label class="label" for="announcement-channel">Canal</label>
+          <select class="select" id="announcement-channel" name="channel">
+            <option value="in_app" th:selected="${f.channel() == 'in_app'}">In-app</option>
+            <option value="email" th:selected="${f.channel() == 'email'}">Email</option>
+            <option value="push" th:selected="${f.channel() == 'push'}">Push</option>
+            <option value="all" th:selected="${f.channel() == 'all'}">Tous canaux</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="announcement-publish">Date / heure de publication</label>
+          <input type="datetime-local" id="announcement-publish" name="publishAt" th:value="${f.publishAt()}"
+                 class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="announcement-target">Cible</label>
+        <select class="select" id="announcement-target" name="target" x-model="target">
+          <option value="all" th:selected="${f.target() == 'all'}">Tous les utilisateurs</option>
+          <option value="active" th:selected="${f.target() == 'active'}">Membres actifs</option>
+          <option value="specific" th:selected="${f.target() == 'specific'}">Membres spécifiques</option>
+          <option value="by_coach" th:selected="${f.target() == 'by_coach'}" th:text="#{announcements.target.coach}"></option>
+        </select>
+        <div x-show="target === 'specific'" x-cloak class="border rounded-md p-3 max-h-40 overflow-y-auto space-y-1">
+          <label th:each="m : ${members}" class="flex items-center gap-2 text-sm cursor-pointer">
+            <input class="input" type="checkbox" name="targetUserIds" th:value="${m.id()}" th:checked="${f.targetUserIds().contains(m.id())}">
+            <span class="truncate"><th:block th:text="${m.name()}"></th:block> <span class="text-muted-foreground text-xs" th:text="|(${m.email()})|"></span></span>
+          </label>
+        </div>
+        <select x-show="target === 'by_coach'" x-cloak class="select" name="targetCoachId" aria-label="Coach">
+          <option value="" disabled hidden th:selected="${f.targetCoachId().isEmpty()}">Choisir un coach</option>
+          <option th:each="c : ${coaches}" th:value="${c.id()}" th:text="${c.name()}" th:selected="${c.id().toString() == f.targetCoachId()}"></option>
+        </select>
+      </div>
+      <div class="flex items-center justify-between rounded-lg border p-3">
+        <div>
+          <label class="label cursor-pointer" for="announcement-recurring">Annonce récurrente</label>
+          <p class="text-xs text-muted-foreground" th:text="#{announcements.recurring.hint}"></p>
+        </div>
+        <input type="hidden" name="recurring" value="false">
+        <input class="input" type="checkbox" role="switch" id="announcement-recurring" name="recurring" value="true" x-model="recurring">
+      </div>
+      <div x-show="recurring" x-cloak class="space-y-3 border rounded-md p-3">
+        <div class="space-y-2">
+          <label class="label" for="announcement-freq">Fréquence</label>
+          <select class="select" id="announcement-freq" name="recurrenceFreq" x-model="freq">
+            <option value="DAILY">Quotidien</option>
+            <option value="WEEKLY">Hebdomadaire</option>
+            <option value="MONTHLY">Mensuel</option>
+          </select>
+        </div>
+        <div x-show="freq === 'WEEKLY'" class="space-y-2">
+          <label class="label">Jours</label>
+          <div class="flex flex-wrap gap-2">
+            <label th:each="d : ${ {{'MO','Lun'},{'TU','Mar'},{'WE','Mer'},{'TH','Jeu'},{'FR','Ven'},{'SA','Sam'},{'SU','Dim'}} }"
+                   th:data-checked="${f.recurrenceDays().contains(d[0])}" x-data="{ on: $el.dataset.checked === 'true' }"
+                   :class="on ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent'"
+                   class="px-3 py-1 rounded-full text-xs border cursor-pointer">
+              <input type="checkbox" class="hidden" name="recurrenceDays" th:value="${d[0]}" x-model="on"><th:block th:text="${d[1]}"></th:block>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer th:insert="~{fragments/ui/components :: formDialogFooter(null)}"></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<!--/* Image de couverture : téléversée à part, l'URL repart avec le formulaire. */-->
+<div th:fragment="cover(coverUrl)" id="announcement-cover" class="flex items-center gap-3" th:with="url=${coverUrl != null ? coverUrl : ''}">
+  <input type="hidden" name="coverImageUrl" th:value="${url}">
+  <img th:unless="${#strings.isEmpty(url)}" th:src="${url}" alt="" class="h-16 w-24 object-cover rounded-md border">
+  <div th:if="${#strings.isEmpty(url)}" class="h-16 w-24 border border-dashed rounded-md flex items-center justify-center text-muted-foreground"
+       th:utext="${icons.svg('image', 'h-5 w-5')}"></div>
+  <div class="flex gap-2">
+    <button type="button" class="btn group" data-variant="outline" data-size="sm" onclick="document.getElementById('announcement-cover-file').click()">
+      <span class="group-[.htmx-request]:hidden" th:text="${#strings.isEmpty(url) ? 'Téléverser' : 'Remplacer'}"></span>
+      <span class="hidden group-[.htmx-request]:inline">Envoi…</span>
+    </button>
+    <button th:unless="${#strings.isEmpty(url)}" type="button" class="btn" data-variant="ghost" data-size="sm"
+            hx-post="/app/coach/announcements/cover" hx-vals='{"clear": "true"}' hx-target="#announcement-cover" hx-swap="outerHTML"
+            hx-encoding="multipart/form-data" hx-params="clear">Retirer</button>
+  </div>
+  <input type="file" id="announcement-cover-file" name="file" accept="image/*" class="hidden"
+         hx-post="/app/coach/announcements/cover" hx-encoding="multipart/form-data" hx-params="file" hx-trigger="change"
+         hx-target="#announcement-cover" hx-swap="outerHTML" hx-indicator="#announcement-cover button">
+</div>
+</body>
+</html>

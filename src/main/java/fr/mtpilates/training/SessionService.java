@@ -124,7 +124,7 @@ public class SessionService {
     }
 
     private void addBlock(final WorkoutSession session, final SessionPayload.Block payload) {
-        final String type = BLOCK_TYPES.contains(payload.blockType()) ? payload.blockType() : "single";
+        final String type = payload.blockType() != null && BLOCK_TYPES.contains(payload.blockType()) ? payload.blockType() : "single";
         final WorkoutBlock block = session.addBlock(type, Math.max(1, Optional.ofNullable(payload.rounds()).orElse(1)),
                 Optional.ofNullable(payload.notes()).filter(s -> !s.isEmpty()).orElse(null));
         for (final SessionPayload.Item item : payload.exercises()) {

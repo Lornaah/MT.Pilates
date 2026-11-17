@@ -152,7 +152,7 @@ public class ProgramService {
             final List<WorkoutSession> daySessions = Optional.ofNullable(day.sessionIds()).orElse(List.of()).stream()
                     .map(ProgramService::uuid).flatMap(Optional::stream).map(sessions::findById).flatMap(Optional::stream)
                     .toList();
-            week.addDay(day.dayOfWeek(), DAY_TYPES.contains(day.dayType()) ? day.dayType() : "rest",
+            week.addDay(day.dayOfWeek(), day.dayType() != null && DAY_TYPES.contains(day.dayType()) ? day.dayType() : "rest",
                     Optional.ofNullable(day.comment()).filter(s -> !s.isEmpty()).orElse(null),
                     daySessions.isEmpty() ? null : daySessions.getFirst(), daySessions);
         }

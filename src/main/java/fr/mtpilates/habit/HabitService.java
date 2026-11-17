@@ -80,7 +80,7 @@ public class HabitService {
         final Habit habit = id.flatMap(habits::findById).orElseGet(() -> new Habit(user.id()));
         habit.update(title, Optional.ofNullable(form.description()).map(String::trim).filter(s -> !s.isEmpty()).orElse(null),
                 HabitIcons.isKnown(form.icon()) ? form.icon() : "sparkles",
-                FREQUENCY_LABELS.containsKey(form.frequency()) ? form.frequency() : "daily", checked(form.global()));
+                form.frequency() != null && FREQUENCY_LABELS.containsKey(form.frequency()) ? form.frequency() : "daily", checked(form.global()));
         habits.save(habit);
         return true;
     }

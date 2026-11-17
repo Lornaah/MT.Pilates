@@ -85,6 +85,8 @@ L'original est en Tailwind v3, la cible en v4. En recopiant une classe, applique
 - Basecoat diverge de shadcn sur `.label` (flex) et `.tabs` (flex) : le style pack les remet en inline / bloc.
 
 ## Pièges Thymeleaf / HTMX rencontrés
+- Java : `List.of/Set.of/Map.of(...).contains(null)` lève une NullPointerException ; tester la valeur d'un formulaire avant.
+- Case à cocher + champ caché de même nom : Spring joint les valeurs (« false,true ») ; lire avec `contains("true")`.
 - Un littéral passé à un fragment ne peut pas contenir d'apostrophe : passer par `messages.properties` (`#{cle}`).
 - `th:replace` / `th:insert` passent avant `th:if` sur le même élément : envelopper dans `<th:block th:if>`.
 - Pas de lambda ni de `@bean` dans les expressions : préparer la valeur côté Java (modèle, `@ControllerAdvice`).
