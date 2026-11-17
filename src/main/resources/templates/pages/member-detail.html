@@ -121,8 +121,42 @@
                 <th:block th:utext="${icons.svg('video', 'h-4 w-4 mr-1')}"></th:block> Vidéos
               </button>
             </nav>
-            <!--/* Contenus branchés par les modules Entraînement (M7) et Habitudes (M8). */-->
-            <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program"></div>
+            <!--/* Contenu de l'onglet Habitudes branché par le module M8. */-->
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program">
+              <div class="card">
+                <header class="flex flex-row items-center justify-between">
+                  <h3 class="font-display text-lg leading-7">Programmes du membre</h3>
+                  <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/coach/programs/new(assignee=${memberId})}">
+                    <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block> Nouveau
+                  </a>
+                </header>
+                <section class="space-y-6">
+                  <th:block th:unless="${hasPrograms}">
+                    <div th:replace="~{fragments/ui/components :: emptyState('calendar-range', null, 'Aucun programme assigné à ce membre.', null)}"></div>
+                  </th:block>
+                  <th:block th:if="${hasPrograms}">
+                    <div th:each="section : ${programSections}" th:unless="${section.programs().isEmpty()}" class="space-y-2">
+                      <h4 class="text-xs font-medium uppercase tracking-widest text-muted-foreground" th:text="${section.title()}"></h4>
+                      <div class="space-y-2">
+                        <div th:each="p : ${section.programs()}" class="flex items-center justify-between gap-3 rounded-md border p-3">
+                          <div class="min-w-0">
+                            <div class="font-medium truncate" th:text="${p.title()}"></div>
+                            <div class="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                              <span class="badge rounded-full text-xs" data-variant="outline" th:text="${p.statusLabel()}"></span>
+                              <span th:if="${p.startLabel().isPresent()}" th:text="${p.startLabel().get()}"></span>
+                              <span th:if="${p.durationWeeks().isPresent()}" th:text="|· ${p.durationWeeks().get()} sem.|"></span>
+                            </div>
+                          </div>
+                          <a class="btn" data-variant="ghost" data-size="sm" th:href="@{/app/coach/programs/{id}(id=${p.id()})}">
+                            <th:block th:utext="${icons.svg('pencil', 'h-4 w-4')}"></th:block> Éditer
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </th:block>
+                </section>
+              </div>
+            </div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits"></div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents">
               <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>

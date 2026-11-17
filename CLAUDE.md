@@ -90,7 +90,7 @@ L'original est en Tailwind v3, la cible en v4. En recopiant une classe, applique
 - Pas de lambda ni de `@bean` dans les expressions : préparer la valeur côté Java (modèle, `@ControllerAdvice`).
 - `th:attr` refuse les noms d'attributs Alpine (`@click`, `x-bind:…`) et les expressions `T(...)` sont interdites :
   passer les valeurs dynamiques en `th:data-*` et les lire dans Alpine via `$el.dataset`.
-- Un nom de fragment est aussi un sélecteur de balise : `:: dialog` sélectionne aussi les `<dialog>` du fichier. Nommer les fragments
+- Un nom de fragment est aussi un sélecteur de balise : `:: dialog` ou `:: body` sélectionnent aussi les balises `<dialog>` ou `<body>`. Nommer les fragments
   autrement que des balises HTML.
 - En-têtes HTMX (`HX-Trigger`) : ASCII uniquement, `ToastResponses` échappe déjà le JSON.
 

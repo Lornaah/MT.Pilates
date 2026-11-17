@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Mon programme — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <th:block th:if="${planning == null}">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Mon programme', 'Aucune planification active', #{planning.none.description}, null, null, null, null)}"></div>
+    <div class="container py-8">
+      <div th:replace="~{fragments/ui/components :: emptyState('calendar', null, 'Revenez plus tard ou contactez votre coach.', null)}"></div>
+    </div>
+  </th:block>
+  <th:block th:unless="${planning == null}">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Mon programme', ${planning.title()}, ${planning.description().orElse(null)}, null, null, null, null)}"></div>
+    <div class="container py-8 space-y-6" x-data="{ tab: 'today' }">
+      <div class="tabs">
+        <nav role="tablist">
+          <button type="button" role="tab" :aria-selected="tab === 'today'" @click="tab = 'today'">Aujourd'hui</button>
+          <button type="button" role="tab" :aria-selected="tab === 'week'" @click="tab = 'week'">Cette semaine</button>
+          <button type="button" role="tab" :aria-selected="tab === 'overview'" @click="tab = 'overview'">Vue d'ensemble</button>
+        </nav>
+        <div th:replace="~{::planningBody}"></div>
+      </div>
+    </div>
+  </th:block>
+</th:block>
+
+<div th:fragment="planningBody" id="planning-body">
+  <div role="tabpanel" class="mt-6" x-show="tab === 'today'">
+    <th:block th:if="${planning.today().isEmpty()}">
+      <div th:replace="~{fragments/ui/components :: emptyState('calendar', null, #{planning.today.empty}, null)}"></div>
+    </th:block>
+    <th:block th:if="${planning.today().isPresent()}">
+      <div th:replace="~{::dayCard(${planning.today().get()}, ${planning.todayLabel()}, true)}"></div>
+    </th:block>
+    <p th:if="${planning.current().isPresent() and planning.current().get().comment().isPresent()}"
+       class="mt-4 text-sm text-muted-foreground italic" th:text="|Note de la semaine : ${planning.current().get().comment().get()}|"></p>
+  </div>
+  <div role="tabpanel" class="mt-6" x-show="tab === 'week'" x-cloak>
+    <th:block th:if="${planning.current().isPresent()}">
+      <div th:replace="~{::weekGrid(${planning.current().get()})}"></div>
+    </th:block>
+    <th:block th:if="${planning.current().isEmpty()}">
+      <div th:replace="~{fragments/ui/components :: emptyState('calendar', null, 'Aucune semaine en cours.', null)}"></div>
+    </th:block>
+  </div>
+  <div role="tabpanel" class="mt-6 space-y-6" x-show="tab === 'overview'" x-cloak>
+    <div th:each="week : ${planning.weeks()}">
+      <h3 class="font-display text-xl leading-7 mb-3" th:text="|Semaine ${week.number()}|"></h3>
+      <p th:if="${week.comment().isPresent()}" class="text-sm text-muted-foreground italic mb-3" th:text="${week.comment().get()}"></p>
+      <div th:replace="~{::weekGrid(${week})}"></div>
+    </div>
+  </div>
+</div>
+
+<div th:fragment="weekGrid(week)" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+  <div th:each="day, it : ${week.days()}">
+    <th:block th:if="${day.isPresent()}">
+      <div th:replace="~{::dayCard(${day.get()}, ${week.dayLabel(it.index)}, false)}"></div>
+    </th:block>
+    <div th:if="${day.isEmpty()}" class="card opacity-50 min-h-[140px]">
+      <div class="p-3 text-xs text-muted-foreground" th:text="${week.dayLabel(it.index)}"></div>
+    </div>
+  </div>
+</div>
+
+<div th:fragment="dayCard(day, label, large)" class="card h-full" th:classappend="${day.completed()} ? 'bg-primary/5 border-primary/40'">
+  <div th:class="${large} ? 'p-5 flex flex-col gap-4 h-full' : 'p-3 flex flex-col gap-2 h-full'">
+    <div class="flex items-center justify-between">
+      <span th:class="${large} ? 'text-sm font-medium text-muted-foreground' : 'text-xs font-medium text-muted-foreground'" th:text="${label}"></span>
+      <span class="badge rounded-full text-[10px]" data-variant="outline" th:text="${day.typeLabel()}"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <th:block th:utext="${icons.svg(day.icon(), large ? 'h-6 w-6 text-primary' : 'h-4 w-4 text-primary')}"></th:block>
+      <span th:class="${large} ? 'font-medium leading-tight text-lg' : 'font-medium leading-tight text-sm'" th:text="${day.title()}"></span>
+    </div>
+    <div th:if="${day.comment().isPresent()}" class="relative" x-data="{ open: false }" @click.outside="open = false">
+      <button type="button" class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="open = !open">
+        <th:block th:utext="${icons.svg('message-square', 'h-3 w-3')}"></th:block> Note du coach
+      </button>
+      <div x-show="open" x-cloak class="absolute left-0 top-full z-50 mt-1 w-72 rounded-md border bg-popover p-4 text-sm text-popover-foreground shadow-md"
+           th:text="${day.comment().get()}"></div>
+    </div>
+    <div class="mt-auto flex items-center gap-2 flex-wrap">
+      <th:block th:if="${day.workout()}">
+        <a th:each="s : ${day.sessions()}" class="btn" data-variant="ghost" data-size="sm"
+           th:href="@{/app/coach/sessions/{id}(id=${s.id()})}" th:text="|Voir « ${s.title()} »|"></a>
+      </th:block>
+      <div class="flex-1"></div>
+      <button type="button" class="btn" data-size="sm" th:attr="data-variant=${day.completed() ? 'outline' : 'hero'},
+              hx-post=@{/app/planning/days/{id}/toggle(id=${day.id()})}" hx-target="#planning-body" hx-swap="outerHTML">
+        <th:block th:utext="${icons.svg('check', 'h-4 w-4')}"></th:block>
+        <th:block th:text="${day.completed() ? 'Fait ✓' : 'Marquer fait'}"></th:block>
+      </button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
