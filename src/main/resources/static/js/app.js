@@ -412,6 +412,129 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Requête JSON hors htmx : jeton CSRF du <body>, puis HX-Trigger (toasts) et HX-Redirect rejoués comme htmx.
+  Alpine.magic("postJson", (el) => async (url, body) => {
+    const headers = {
+      "Content-Type": "application/json", "HX-Request": "true",
+      ...JSON.parse(document.body.getAttribute("hx-headers") || "{}"),
+    };
+    const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    const trigger = response.headers.get("HX-Trigger");
+    if (trigger) {
+      Object.entries(JSON.parse(trigger)).forEach(([name, detail]) => el.dispatchEvent(new CustomEvent(name, { detail, bubbles: true })));
+    }
+    const redirect = response.headers.get("HX-Redirect");
+    if (redirect) {
+      window.location.href = redirect;
+      return null;
+    }
+    return response.ok && response.status !== 204 ? response.json() : null;
+  });
+
+  // MealPlanGenerator : étapes, configuration (pré-remplie depuis l'élève), repas et liste de courses.
+  const MEAL_TYPE_LABELS = { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner", snack: "Collation", dessert: "Dessert" };
+  Alpine.data("mealPlanWizard", (members, recipes, preset) => ({
+    members,
+    recipes,
+    steps: [
+      { key: "member", label: "Élève" }, { key: "config", label: "Config" }, { key: "generate", label: "Plan" },
+      { key: "shopping", label: "Courses" }, { key: "send", label: "Envoi" },
+    ],
+    step: "member",
+    memberId: null,
+    title: "Plan repas hebdomadaire",
+    config: {
+      kcalTarget: 2000, proteinG: 140, carbsG: 200, fatG: 70, mealsPerDay: 3, freeMealSlots: 0,
+      includeDesserts: false, hideMacros: false, dietaryTags: [], excludedAllergens: [], availableEquipment: [],
+    },
+    meals: {},
+    shoppingList: [],
+    sending: false,
+    init() { if (preset) this.chooseMember(preset); },
+    get stepIndex() { return this.steps.findIndex((s) => s.key === this.step); },
+    get member() { return this.members.find((m) => m.id === this.memberId); },
+    get memberLabel() { return this.member ? this.member.label.trim() : "—"; },
+    get hasMeals() { return Object.keys(this.meals).length > 0; },
+    get shoppingEmpty() { return this.shoppingList.length === 0 || this.shoppingList[0]?.items.length === 0; },
+    get totalMeals() { return Object.values(this.meals).reduce((acc, d) => acc + d.length, 0); },
+    chooseMember(id) {
+      this.memberId = id;
+      const m = this.member;
+      if (!m) return;
+      this.config = { ...this.config, ...m.configPatch };
+      this.title = m.planTitle;
+    },
+    togglePill(key, value) {
+      const list = this.config[key];
+      this.config[key] = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+    },
+    dayMeals(day) { return this.meals[day] ?? []; },
+    mealTypeLabel(type) { return MEAL_TYPE_LABELS[type] ?? type; },
+    totalsLabel(day) {
+      const t = this.dayMeals(day).reduce((a, m) => ({
+        kcal: a.kcal + (m.calories ?? 0), p: a.p + (m.protein_g ?? 0), c: a.c + (m.carbs_g ?? 0), f: a.f + (m.fat_g ?? 0),
+      }), { kcal: 0, p: 0, c: 0, f: 0 });
+      return `${t.kcal} kcal · P ${t.p}g · G ${t.c}g · L ${t.f}g`;
+    },
+    async generated() {
+      const result = await this.$postJson("/app/coach/nutrition/plans/generate/run", this.config);
+      return result?.meals ?? null;
+    },
+    async refreshShopping() {
+      this.shoppingList = await this.$postJson("/app/coach/nutrition/plans/generate/shopping", { ...this.config, meals: this.meals }) ?? [];
+    },
+    async generate() {
+      const meals = await this.generated();
+      if (!meals) return;
+      this.meals = meals;
+      await this.refreshShopping();
+      this.$dispatch("toast", { message: "Plan généré", category: "success" });
+    },
+    async regenerateDay(day) {
+      const meals = await this.generated();
+      if (!meals) return;
+      this.meals = { ...this.meals, [day]: meals[day] };
+      await this.refreshShopping();
+    },
+    async swapMeal(day, idx, recipeId) {
+      const recipe = this.recipes.find((r) => r.id === recipeId);
+      if (!recipe) return;
+      const slot = this.dayMeals(day)[idx];
+      const updated = [...this.dayMeals(day)];
+      updated[idx] = { ...plannedMeal(recipe), meal_type: slot.meal_type };
+      this.meals = { ...this.meals, [day]: updated };
+      await this.refreshShopping();
+    },
+    goNext() {
+      if (this.step === "member" && !this.memberId) {
+        this.$dispatch("toast", { message: "Sélectionnez un élève", category: "error" });
+        return;
+      }
+      if (this.step === "config") {
+        this.step = "generate";
+        setTimeout(() => this.generate(), 50);
+        return;
+      }
+      this.step = this.steps[Math.min(this.steps.length - 1, this.stepIndex + 1)].key;
+    },
+    goPrev() { this.step = this.steps[Math.max(0, this.stepIndex - 1)].key; },
+    async send() {
+      if (!this.memberId) return;
+      if (!this.hasMeals) {
+        this.$dispatch("toast", { message: "Générez le plan avant de l'envoyer", category: "error" });
+        return;
+      }
+      this.sending = true;
+      await this.$postJson("/app/coach/nutrition/plans", {
+        memberId: this.memberId, title: this.title, meals: this.meals, shoppingList: this.shoppingList,
+        kcalTarget: this.config.kcalTarget,
+        macrosTarget: { protein_g: this.config.proteinG, carbs_g: this.config.carbsG, fat_g: this.config.fatG },
+        hideMacros: this.config.hideMacros,
+      });
+      this.sending = false;
+    },
+  }));
+
   // RecipeLibrary : onglet, recherche et filtres (l'allergène exclut les recettes qui le contiennent).
   Alpine.data("recipeFilters", () => ({
     tab: "all",

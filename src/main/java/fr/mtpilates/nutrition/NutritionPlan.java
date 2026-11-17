@@ -54,6 +54,9 @@ public class NutritionPlan {
     @Column(name = "macros_target")
     private Map<String, Object> macrosTarget;
 
+    @Column(name = "hide_macros_from_member", nullable = false)
+    private boolean hideMacrosFromMember;
+
     @Column(name = "generated_from_template", nullable = false)
     private boolean generatedFromTemplate;
 
@@ -80,6 +83,22 @@ public class NutritionPlan {
         plan.meals = new LinkedHashMap<>(days);
         plan.generatedFromTemplate = true;
         plan.sourceTemplateId = template.getId();
+        plan.updatedAt = now;
+        return plan;
+    }
+
+    /** Plan issu du générateur (mealPlansService.create de l'original). */
+    public static NutritionPlan generated(final GeneratedPlan p, final UUID coachId, final Instant now) {
+        final NutritionPlan plan = new NutritionPlan();
+        plan.id = UUID.randomUUID();
+        plan.memberId = p.memberId();
+        plan.coachId = coachId;
+        plan.title = p.title();
+        plan.meals = new LinkedHashMap<>(p.meals());
+        plan.shoppingList = new ArrayList<>(p.shoppingList());
+        plan.kcalTarget = p.kcalTarget();
+        plan.macrosTarget = p.macrosTarget();
+        plan.hideMacrosFromMember = p.hideMacros();
         plan.updatedAt = now;
         return plan;
     }

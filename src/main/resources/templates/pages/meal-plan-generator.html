@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Générateur de plan repas — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    MealPlanGenerator : assistant en 5 étapes. L'état (élève, configuration, repas, courses) vit dans Alpine ;
+    la génération (port Java de mealPlanGenerator.ts), la liste de courses et l'envoi sont faits par le serveur.
+  */-->
+  <div th:data-members="${membersJson}" th:data-recipes="${recipesJson}" th:data-preset="${presetMember}"
+       x-data="mealPlanWizard(JSON.parse($el.dataset.members), JSON.parse($el.dataset.recipes), $el.dataset.preset)">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Nutrition', 'Générateur de plan repas',
+         'Construisez un plan hebdomadaire personnalisé en quelques clics.', null, null, null, null)}"></div>
+
+    <div class="container py-8 space-y-6">
+      <div class="tabs">
+        <nav role="tablist">
+          <template x-for="(s, i) in steps" :key="s.key">
+            <button type="button" role="tab" :aria-selected="step === s.key" @click="step = s.key" x-text="`${i + 1}. ${s.label}`"></button>
+          </template>
+        </nav>
+      </div>
+
+      <!--/* 1. Élève */-->
+      <div x-show="step === 'member'" class="card">
+        <header><h2>Choisir l'élève</h2></header>
+        <section class="space-y-4">
+          <select class="select" :value="memberId ?? ''" @change="chooseMember($event.target.value)" aria-label="Élève"
+                  :class="memberId ? '' : 'text-muted-foreground'">
+            <option value="" disabled hidden>Sélectionner un élève…</option>
+            <template x-for="m in members" :key="m.id">
+              <option :value="m.id" x-text="m.label" class="text-foreground" :selected="m.id === memberId"></option>
+            </template>
+          </select>
+          <div class="space-y-2">
+            <label class="label" for="plan-title">Titre du plan</label>
+            <input class="input" id="plan-title" type="text" x-model="title">
+          </div>
+        </section>
+      </div>
+
+      <!--/* 2. Config */-->
+      <div x-show="step === 'config'" x-cloak class="grid lg:grid-cols-2 gap-6">
+        <div class="card">
+          <header><h2>Cibles macros</h2></header>
+          <section class="space-y-5">
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <label class="label" for="cfg-kcal">Calories / jour</label>
+                <span class="text-sm font-medium" x-text="`${config.kcalTarget} kcal`"></span>
+              </div>
+              <input id="cfg-kcal" type="range" class="slider" min="1000" max="4000" step="50" :value="config.kcalTarget" :style="`--slider-fill: ${(config.kcalTarget - 1000) / 30}%`"
+                     @input="config.kcalTarget = Number($event.target.value)">
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="space-y-1">
+                <label class="label text-xs leading-4" for="cfg-protein">Protéines (g)</label>
+                <input class="input" id="cfg-protein" type="number" :value="config.proteinG" @input="config.proteinG = Number($event.target.value)">
+              </div>
+              <div class="space-y-1">
+                <label class="label text-xs leading-4" for="cfg-carbs">Glucides (g)</label>
+                <input class="input" id="cfg-carbs" type="number" :value="config.carbsG" @input="config.carbsG = Number($event.target.value)">
+              </div>
+              <div class="space-y-1">
+                <label class="label text-xs leading-4" for="cfg-fat">Lipides (g)</label>
+                <input class="input" id="cfg-fat" type="number" :value="config.fatG" @input="config.fatG = Number($event.target.value)">
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="card">
+          <header><h2>Structure de la journée</h2></header>
+          <section class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="label" for="cfg-meals">Repas par jour</label>
+                <select class="select" id="cfg-meals" :value="String(config.mealsPerDay)" @change="config.mealsPerDay = Number($event.target.value)">
+                  <option th:each="n : ${#numbers.sequence(3, 6)}" th:value="${n}" th:text="${n}"></option>
+                </select>
+              </div>
+              <div class="space-y-1">
+                <label class="label" for="cfg-free">Créneaux libres</label>
+                <select class="select" id="cfg-free" :value="String(config.freeMealSlots)" @change="config.freeMealSlots = Number($event.target.value)">
+                  <option th:each="n : ${#numbers.sequence(0, 3)}" th:value="${n}" th:text="${n}"></option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <label class="label" for="cfg-desserts">Inclure les desserts</label>
+              <input class="input" id="cfg-desserts" type="checkbox" role="switch" x-model="config.includeDesserts">
+            </div>
+            <div class="flex items-center justify-between">
+              <label class="label" for="cfg-hide">Masquer les macros côté élève</label>
+              <input class="input" id="cfg-hide" type="checkbox" role="switch" x-model="config.hideMacros">
+            </div>
+          </section>
+        </div>
+
+        <div class="card lg:col-span-2">
+          <header><h2>Restrictions alimentaires</h2></header>
+          <section class="space-y-4">
+            <div th:replace="~{::pillFilter('Régimes', 'dietaryTags', ${dietaryTags})}"></div>
+            <div th:replace="~{::pillFilter('Allergènes à exclure', 'excludedAllergens', ${allergens})}"></div>
+            <div th:replace="~{::pillFilter('Équipement disponible', 'availableEquipment', ${equipment})}"></div>
+            <p class="text-xs text-muted-foreground">Les valeurs ci-dessus sont pré-remplies depuis le profil de l'élève.
+              Modifiez-les pour des ajustements ponctuels propres à ce plan.</p>
+          </section>
+        </div>
+      </div>
+
+      <!--/* 3. Plan */-->
+      <div x-show="step === 'generate'" x-cloak class="space-y-4">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-muted-foreground" th:data-empty="#{generator.plan.empty}" th:data-filled="#{generator.plan.filled}"
+             x-text="hasMeals ? $el.dataset.filled : $el.dataset.empty"></p>
+          <button type="button" class="btn" data-variant="outline" @click="generate()">
+            <th:block th:utext="${icons.svg('refresh-cw', 'h-4 w-4')}"></th:block> Régénérer la semaine
+          </button>
+        </div>
+        <div class="space-y-3">
+          <div th:each="d : ${days}" th:data-day="${d.key}" x-data="{ day: $el.dataset.day }" class="card">
+            <header class="flex-row items-center justify-between space-y-0">
+              <div>
+                <h2 class="text-base" th:text="${d.value}"></h2>
+                <p class="text-xs text-muted-foreground mt-1" x-text="totalsLabel(day)"></p>
+              </div>
+              <button type="button" class="btn" data-variant="ghost" data-size="sm" @click="regenerateDay(day)">
+                <th:block th:utext="${icons.svg('refresh-cw', 'h-3 w-3')}"></th:block> Régénérer
+              </button>
+            </header>
+            <section>
+              <p x-show="dayMeals(day).length === 0" class="text-sm text-muted-foreground">Aucun repas généré.</p>
+              <div x-show="dayMeals(day).length > 0" class="space-y-2">
+                <template x-for="(m, idx) in dayMeals(day)" :key="idx">
+                  <div class="flex items-center gap-3 p-2 rounded-md border border-border">
+                    <span class="badge text-[10px] leading-normal uppercase shrink-0" data-variant="secondary" x-text="mealTypeLabel(m.meal_type)"></span>
+                    <div class="flex-1 min-w-0">
+                      <p x-show="m.is_free_slot" class="text-sm italic text-muted-foreground" x-text="m.recipe_title"></p>
+                      <select x-show="!m.is_free_slot" class="select h-8 py-0 text-sm" :value="m.recipe_id"
+                              @change="swapMeal(day, idx, $event.target.value)" aria-label="Recette">
+                        <template x-for="r in recipes" :key="r.id">
+                          <option :value="r.id" x-text="r.title" :selected="r.id === m.recipe_id"></option>
+                        </template>
+                      </select>
+                    </div>
+                    <div x-show="!m.is_free_slot" class="text-xs text-muted-foreground shrink-0 hidden sm:block"
+                         x-text="`×${m.servings} · ${m.calories ?? 0} kcal`"></div>
+                  </div>
+                </template>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!--/* 4. Courses */-->
+      <div x-show="step === 'shopping'" x-cloak class="card">
+        <header>
+          <h2 class="flex items-center gap-2"><th:block th:utext="${icons.svg('shopping-cart', 'h-5 w-5')}"></th:block> Liste de courses</h2>
+        </header>
+        <section>
+          <p x-show="shoppingEmpty" class="text-sm text-muted-foreground">Aucune liste générée. Retournez à l'étape Plan pour créer le menu.</p>
+          <div x-show="!shoppingEmpty" class="space-y-4">
+            <template x-for="group in shoppingList" :key="group.aisle">
+              <div>
+                <h4 class="font-medium text-sm uppercase text-muted-foreground mb-2" x-text="group.aisle === 'autre' ? 'Tous les ingrédients' : group.aisle"></h4>
+                <ul class="space-y-1 text-sm">
+                  <template x-for="(it, i) in group.items" :key="i">
+                    <li class="flex justify-between border-b border-border/50 py-1">
+                      <span x-text="it.name"></span>
+                      <span class="text-muted-foreground" x-text="it.qty > 0 ? `${it.qty} ${it.unit}` : it.unit"></span>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+            </template>
+          </div>
+        </section>
+      </div>
+
+      <!--/* 5. Envoi */-->
+      <div x-show="step === 'send'" x-cloak class="card">
+        <header>
+          <h2 class="flex items-center gap-2"><th:block th:utext="${icons.svg('send', 'h-5 w-5')}"></th:block> Envoyer le plan</h2>
+        </header>
+        <section class="space-y-4">
+          <div class="text-sm space-y-2">
+            <p><strong>Élève :</strong> <span x-text="memberLabel"></span></p>
+            <p><strong>Titre :</strong> <span x-text="title"></span></p>
+            <p><strong>Cible :</strong> <span x-text="`${config.kcalTarget} kcal · P ${config.proteinG}g · G ${config.carbsG}g · L ${config.fatG}g`"></span></p>
+            <p><strong>Macros visibles côté élève :</strong> <span x-text="config.hideMacros ? 'Non' : 'Oui'"></span></p>
+            <p><strong>Repas planifiés :</strong> <span x-text="totalMeals"></span></p>
+          </div>
+          <div class="bg-muted/50 rounded-sm p-3 text-xs text-muted-foreground">
+            <th:block th:utext="${icons.svg('chef-hat', 'h-4 w-4 inline mr-1')}"></th:block><th:block th:text="#{generator.send.pdf}"></th:block>
+          </div>
+          <button type="button" class="btn" data-variant="hero" @click="send()" :disabled="sending">
+            <th:block th:utext="${icons.svg('send', 'h-4 w-4')}"></th:block>
+            <span x-text="sending ? 'Envoi…' : 'Envoyer à l\'élève'"></span>
+          </button>
+        </section>
+      </div>
+
+      <div class="flex justify-between">
+        <button type="button" class="btn" data-variant="ghost" @click="goPrev()" :disabled="stepIndex === 0">
+          <th:block th:utext="${icons.svg('chevron-left', 'h-4 w-4')}"></th:block> Précédent
+        </button>
+        <button type="button" class="btn" data-variant="hero" x-show="stepIndex < steps.length - 1" @click="goNext()">
+          Suivant <th:block th:utext="${icons.svg('chevron-right', 'h-4 w-4')}"></th:block>
+        </button>
+      </div>
+    </div>
+  </div>
+</th:block>
+
+<div th:fragment="pillFilter(label, key, options)" class="space-y-2" th:data-key="${key}">
+  <label class="label" th:text="${label}"></label>
+  <div class="flex flex-wrap gap-2">
+    <button th:each="o : ${options}" type="button" th:data-value="${o.key}" th:text="${o.value}"
+            @click="togglePill($el.closest('[data-key]').dataset.key, $el.dataset.value)"
+            :class="config[$el.closest('[data-key]').dataset.key].includes($el.dataset.value) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-muted'"
+            class="px-3 py-1 rounded-full text-xs border transition-colors"></button>
+  </div>
+</div>
+</body>
+</html>

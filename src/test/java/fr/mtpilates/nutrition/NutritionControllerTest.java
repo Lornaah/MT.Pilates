@@ -219,6 +219,46 @@ class NutritionControllerTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM meal_plan_templates WHERE id = ?", Integer.class, id)).isZero();
     }
 
+    @Test
+    void generatorRunsAndSendsAPlanToAManagedMember() throws Exception {
+        final TestUsers.Account coach = users.create("coach", AppRole.COACH);
+        final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
+        jdbc.update("UPDATE profiles SET coach_id = ? WHERE id = ?", coach.id(), member.id());
+        jdbc.update("INSERT INTO recipes (title, calories, meal_types) VALUES ('Générée', 600, '{}')");
+        final String config = "{\"kcalTarget\":1800,\"proteinG\":120,\"carbsG\":180,\"fatG\":60,\"mealsPerDay\":3,"
+                + "\"freeMealSlots\":1,\"includeDesserts\":true}";
+
+        mvc.perform(post("/app/coach/nutrition/plans/generate/run").contentType("application/json").content(config)
+                        .with(coach.login()).with(csrf()))
+                .andExpect(content().string(containsString("\"recipe_title\":\"Repas libre\"")))
+                .andExpect(content().string(containsString("Dessert (libre)")));
+        mvc.perform(get("/app/coach/nutrition/plans/generate").param("member", member.id().toString()).with(coach.login()))
+                .andExpect(content().string(containsString("Générateur de plan repas")));
+
+        final String plan = "{\"memberId\":\"%s\",\"title\":\"Plan %s\",\"meals\":{\"monday\":[]},\"shoppingList\":[],"
+                .formatted(member.id(), member.id()) + "\"kcalTarget\":1800,\"hideMacros\":true}";
+        mvc.perform(post("/app/coach/nutrition/plans").contentType("application/json").content(plan)
+                        .with(coach.login()).with(csrf()))
+                .andExpect(header().string("HX-Redirect", "/app/coach/members/" + member.id()));
+        assertThat(jdbc.queryForObject("SELECT hide_macros_from_member::text || '|' || is_active || '|' || coach_id "
+                + "FROM nutrition_plans WHERE member_id = ?", String.class, member.id())).isEqualTo("true|true|" + coach.id());
+    }
+
+    @Test
+    void generatorRefusesUnmanagedMembersAndEmptyPlans() throws Exception {
+        final TestUsers.Account coach = users.create("coach", AppRole.COACH);
+        final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
+
+        mvc.perform(post("/app/coach/nutrition/plans").contentType("application/json")
+                        .content("{\"memberId\":\"%s\",\"title\":\"x\",\"meals\":{}}".formatted(member.id()))
+                        .with(coach.login()).with(csrf()))
+                .andExpect(header().string("HX-Trigger", containsString("G\\u00E9n\\u00E9rez le plan avant de l'envoyer")));
+        mvc.perform(post("/app/coach/nutrition/plans").contentType("application/json")
+                        .content("{\"memberId\":\"%s\",\"title\":\"x\",\"meals\":{\"monday\":[]}}".formatted(member.id()))
+                        .header("HX-Request", "true").with(coach.login()).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
     private UUID template(final String title) {
         final String week = "{\"week_number\":%d,\"week_comment\":null,\"days\":{\"tuesday\":[{\"recipe_title\":\"%s\"}]}}";
         return jdbc.queryForObject("INSERT INTO meal_plan_templates (title, status, kcal_target, duration_weeks, weeks) "
