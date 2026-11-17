@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Bibliothèque vidéos — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Coach', 'Bibliothèque vidéos', 'Ajoutez vos séances YouTube non répertoriées.', ~{::addVideo}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <button th:fragment="addVideo" type="button" class="btn" data-variant="hero"
+            onclick="document.getElementById('video-create').showModal()">
+      <th:block th:utext="${icons.svg('plus', 'h-4 w-4')}"></th:block>
+      Ajouter une séance
+    </button>
+  </th:block>
+
+  <div class="container py-8">
+    <div th:replace="~{::grid}"></div>
+  </div>
+
+  <dialog id="video-create" class="dialog" aria-labelledby="video-create-title">
+    <form class="max-h-[90vh] overflow-y-auto" hx-post="/app/coach/videos" hx-target="#video-grid" hx-swap="outerHTML"
+          hx-indicator="find button[type=submit]">
+      <header><h2 id="video-create-title" class="font-display text-2xl leading-8">Nouvelle séance</h2></header>
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="label" for="video-title">Titre<span class="text-destructive ml-0.5">*</span></label>
+          <input class="input" id="video-title" type="text" name="title" required>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="video-youtube">URL ou ID YouTube<span class="text-destructive ml-0.5">*</span></label>
+          <input class="input" id="video-youtube" type="text" name="youtube" required
+                 placeholder="https://youtu.be/… ou ID 11 caractères">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-2">
+            <label class="label" for="video-duration">Durée (min)</label>
+            <input class="input" id="video-duration" type="number" name="duration">
+          </div>
+          <div class="space-y-2">
+            <label class="label" for="video-level">Niveau</label>
+            <select class="select" id="video-level" name="level">
+              <option th:each="l : ${levels}" th:value="${l.code()}" th:text="${l.label()}"></option>
+            </select>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="video-focus">Focus (séparés par des virgules)</label>
+          <input class="input" id="video-focus" type="text" name="focus" placeholder="dos, posture, prénatal">
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="video-description">Description</label>
+          <textarea class="textarea" id="video-description" name="description" rows="3"></textarea>
+        </div>
+      </div>
+      <footer th:insert="~{fragments/ui/components :: formDialogFooter('Ajouter')}"></footer>
+      <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+              th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+    </form>
+  </dialog>
+</th:block>
+
+<div th:fragment="grid" id="video-grid">
+  <th:block th:if="${videos.isEmpty()}">
+    <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucune vidéo. Cliquez sur « Ajouter une séance ».', null)}"></div>
+  </th:block>
+  <div th:unless="${videos.isEmpty()}" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div th:each="v : ${videos}" class="card overflow-hidden">
+      <div class="aspect-video bg-muted">
+        <img th:src="|https://i.ytimg.com/vi/${v.youtubeId()}/hqdefault.jpg|" th:alt="${v.title()}"
+             class="h-full w-full object-cover" loading="lazy">
+      </div>
+      <div class="p-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="badge rounded-full" data-variant="secondary" th:text="${v.levelLabel()}"></span>
+          <span th:if="${v.durationMinutes().isPresent()}" class="text-xs text-muted-foreground flex items-center gap-1">
+            <th:block th:utext="${icons.svg('clock', 'h-3 w-3')}"></th:block>
+            <th:block th:text="|${v.durationMinutes().get()} min|"></th:block>
+          </span>
+        </div>
+        <h3 class="font-display text-lg leading-tight" th:text="${v.title()}"></h3>
+        <th:block th:with="dialogId=|delete-video-${v.id()}|">
+          <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm"
+                  th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()">
+            <th:block th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></th:block>
+            Supprimer
+          </button>
+          <dialog class="alert-dialog" th:id="${dialogId}">
+            <div>
+              <header><h2>Supprimer cette séance ?</h2><p th:text="|« ${v.title()} » sera définitivement supprimée.|"></p></header>
+              <footer>
+                <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+                <button type="button" class="btn" data-variant="destructive"
+                        th:attr="hx-delete=@{/app/coach/videos/{id}(id=${v.id()})}" hx-target="#video-grid" hx-swap="outerHTML"
+                        onclick="this.closest('dialog').close()">Supprimer</button>
+              </footer>
+            </div>
+          </dialog>
+        </th:block>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

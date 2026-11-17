@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Séances vidéo — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/* Recherche et niveau : filtrage d'affichage côté navigateur, comme l'original. */-->
+  <div x-data="{ search: '', level: 'all', active: null,
+                 matches(el) {
+                   const q = this.search.toLowerCase().trim();
+                   const okLevel = this.level === 'all' || el.dataset.level === this.level;
+                   return okLevel && (!q || el.dataset.search.includes(q));
+                 },
+                 get visibleCount() { return [...this.$root.querySelectorAll('[data-video]')].filter((el) => this.matches(el)).length; },
+                 open(el) { this.active = { title: el.dataset.title, youtubeId: el.dataset.youtube, description: el.dataset.description };
+                            this.$refs.player.showModal(); } }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Mes séances', 'Vos séances vidéo', 'Pratiquez à votre rythme. Filtrez par niveau ou par focus.', null, null, null, null)}"></div>
+    <div class="container py-8 space-y-6">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+          <input class="input pl-9" type="text" x-model="search" aria-label="Rechercher"
+                 placeholder="Rechercher une séance ou un focus (dos, posture…)">
+        </div>
+        <select class="select sm:w-48" x-model="level" aria-label="Niveau">
+          <option value="all" selected>Tous niveaux</option>
+          <option th:each="l : ${levels}" th:value="${l.code()}" th:text="${l.label()}"></option>
+        </select>
+      </div>
+
+      <template x-if="visibleCount === 0">
+        <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucune séance pour le moment. Votre coach en ajoutera bientôt.', null)}"></div>
+      </template>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5" x-show="visibleCount > 0">
+        <button th:each="v : ${videos}" type="button" class="group text-left" data-video
+                th:data-level="${v.levelCode()}" th:data-search="${v.searchText()}" th:data-title="${v.title()}"
+                th:data-youtube="${v.youtubeId()}" th:data-description="${v.description()}"
+                x-show="matches($el)" @click="open($el)"
+                th:attr="hx-post=@{/app/videos/{id}/views(id=${v.id()})}" hx-swap="none">
+          <div class="card overflow-hidden hover:shadow-warm transition-all duration-300 group-hover:-translate-y-1">
+            <div class="aspect-video bg-muted relative overflow-hidden">
+              <img th:src="${v.thumbnailUrl()}" th:alt="${v.title()}" loading="lazy" class="h-full w-full object-cover"
+                   onerror="this.style.display='none'">
+              <div class="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent"></div>
+              <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="h-14 w-14 rounded-full bg-background/90 flex items-center justify-center"
+                     th:utext="${icons.svg('circle-play', 'h-6 w-6 text-primary')}"></div>
+              </div>
+            </div>
+            <div th:replace="~{::cardBody(${v})}"></div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <dialog x-ref="player" class="dialog" aria-labelledby="player-title" @close="active = null">
+      <div class="max-w-3xl">
+        <header><h2 id="player-title" class="font-display text-2xl leading-8" x-text="active?.title"></h2></header>
+        <template x-if="active">
+          <div class="aspect-video rounded-xl overflow-hidden bg-foreground">
+            <iframe :src="`https://www.youtube.com/embed/${active.youtubeId}?autoplay=1&rel=0`" :title="active.title"
+                    class="h-full w-full" allowfullscreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+          </div>
+        </template>
+        <p x-show="active?.description" class="text-sm text-muted-foreground mt-3" x-text="active?.description"></p>
+        <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()"
+                th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+      </div>
+    </dialog>
+  </div>
+</th:block>
+
+<div th:fragment="cardBody(v)" class="p-4 space-y-2">
+  <div class="flex items-center justify-between gap-2">
+    <span class="badge rounded-full" data-variant="secondary" th:text="${v.levelLabel()}"></span>
+    <span th:if="${v.durationMinutes().isPresent()}" class="text-xs text-muted-foreground flex items-center gap-1">
+      <th:block th:utext="${icons.svg('clock', 'h-3 w-3')}"></th:block>
+      <th:block th:text="|${v.durationMinutes().get()} min|"></th:block>
+    </span>
+  </div>
+  <h3 class="font-display text-lg leading-tight" th:text="${v.title()}"></h3>
+  <div th:unless="${v.focusAreas().isEmpty()}" class="flex flex-wrap gap-1">
+    <span th:each="f, it : ${v.focusAreas()}" th:if="${it.index < 3}"
+          class="text-[10px] uppercase tracking-wider text-muted-foreground" th:text="|· ${f}|"></span>
+  </div>
+</div>
+</body>
+</html>

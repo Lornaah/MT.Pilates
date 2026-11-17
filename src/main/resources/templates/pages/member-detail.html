@@ -121,13 +121,29 @@
                 <th:block th:utext="${icons.svg('video', 'h-4 w-4 mr-1')}"></th:block> Vidéos
               </button>
             </nav>
-            <!--/* Contenus branchés par les modules Entraînement (M7), Habitudes (M8) et Vidéos (M6). */-->
+            <!--/* Contenus branchés par les modules Entraînement (M7) et Habitudes (M8). */-->
             <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program"></div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits"></div>
             <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents">
               <div th:replace="~{fragments/member/documents :: card(${memberId}, ${documents})}"></div>
             </div>
-            <div role="tabpanel" class="mt-4" x-show="coaching === 'videos'" x-cloak id="member-videos"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'videos'" x-cloak id="member-videos">
+              <div class="card">
+                <header><h3 class="font-display text-lg leading-7">Historique des séances vidéo</h3></header>
+                <section class="space-y-2">
+                  <p th:if="${videoHistory.isEmpty()}" class="text-sm text-muted-foreground">Pas encore de séance vue.</p>
+                  <div th:each="view : ${videoHistory}"
+                       class="flex justify-between items-center text-sm py-2 border-b border-border last:border-0">
+                    <div class="flex-1 min-w-0">
+                      <span class="font-medium" th:text="${view.title()}"></span>
+                      <span th:if="${view.completed()}" class="badge ml-2 text-xs" data-variant="secondary">Complétée</span>
+                      <span th:if="${view.rating().isPresent()}" class="ml-2 text-muted-foreground text-xs" th:text="${view.stars()}"></span>
+                    </div>
+                    <span class="text-muted-foreground whitespace-nowrap ml-3" th:text="${view.watchedLabel()}"></span>
+                  </div>
+                </section>
+              </div>
+            </div>
           </div>
         </div>
 

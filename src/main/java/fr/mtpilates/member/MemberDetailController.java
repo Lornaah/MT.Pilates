@@ -7,6 +7,7 @@ import fr.mtpilates.shared.web.ToastResponses;
 import jakarta.servlet.http.HttpServletResponse;
 import fr.mtpilates.tracking.MemberPhotoService;
 import fr.mtpilates.tracking.TrackingChartService;
+import fr.mtpilates.video.VideoService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -27,17 +28,19 @@ public class MemberDetailController {
     private final MemberDocumentService documents;
     private final MemberPhotoService photos;
     private final TrackingChartService chart;
+    private final VideoService videos;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
     private final Clock clock;
 
     public MemberDetailController(final MemberService members, final MemberDocumentService documents,
                                   final MemberPhotoService photos, final TrackingChartService chart,
-                                  final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
+                                  final VideoService videos, final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
         this.members = members;
         this.documents = documents;
         this.photos = photos;
         this.chart = chart;
+        this.videos = videos;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
         this.clock = clock;
@@ -55,6 +58,7 @@ public class MemberDetailController {
         model.addAttribute("photos", photos.photos(user, id));
         model.addAttribute("documents", documents.documents(user, id));
         model.addAttribute("chartPoints", chart.points(user, id));
+        model.addAttribute("videoHistory", videos.history(user, id));
         return "pages/member-detail";
     }
 
