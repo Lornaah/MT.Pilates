@@ -209,6 +209,121 @@ document.addEventListener("alpine:init", () => {
     { key: "thighCm", label: "Cuisses", unit: "cm", cssVar: "--chart-thigh", lowerIsBetter: false },
   ];
   const cssColor = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  // FinanceCharts : 4 graphiques Recharts de l'original redessinés avec Chart.js.
+  const eur = (v) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v || 0);
+  // Recharts trace les camemberts dans le sens antihoraire depuis 3 h : données inversées, départ à 90°, légende inversée.
+  const recPie = (items, colors, extra = {}) => ({
+    type: "doughnut",
+    data: {
+      labels: [...items].reverse().map((d) => d.name),
+      datasets: [{ data: [...items].reverse().map((d) => d.value), backgroundColor: [...colors].slice(0, items.length).reverse(),
+        borderColor: cssColor("--card"), borderWidth: 1, ...extra }],
+    },
+  });
+  // Étiquettes de valeur à l'extérieur des parts, reliées par un trait (option `label` de Recharts).
+  const pieLabels = {
+    id: "pieLabels",
+    afterDatasetsDraw(c) {
+      const meta = c.getDatasetMeta(0);
+      const { ctx } = c;
+      meta.data.forEach((arc, i) => {
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+        const color = arc.options.backgroundColor;
+        const r = arc.outerRadius;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(arc.x + cos * r, arc.y + sin * r);
+        ctx.lineTo(arc.x + cos * (r + 20), arc.y + sin * (r + 20));
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        ctx.textAlign = cos >= 0 ? "left" : "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(c.data.datasets[0].data[i]), arc.x + cos * (r + 24), arc.y + sin * (r + 24));
+        ctx.restore();
+      });
+    },
+  };
+  // Graduations « rondes » de Recharts (getNiceTickValues, 5 graduations depuis 0).
+  const niceAxis = (values) => {
+    const max = Math.max(0, ...values);
+    if (max === 0) return { max: 4, stepSize: 1 };
+    const rough = max / 4;
+    const digits = Math.floor(Math.log10(rough)) + 1;
+    const unit = 10 ** digits;
+    const scale = digits !== 1 ? 0.05 : 0.1;
+    const step = Number((Math.ceil(rough / unit / scale) * scale * unit).toPrecision(12));
+    return { max: step * 4, stepSize: step };
+  };
+  Alpine.data("financeCharts", (data) => ({
+    charts: [],
+    init() {
+      const draw = () => this.draw();
+      if (window.Chart) this.$nextTick(draw); else window.addEventListener("load", draw, { once: true });
+    },
+    destroy() { this.charts.forEach((c) => c.destroy()); },
+    draw() {
+      if (!window.Chart) return;
+      const border = cssColor("--border");
+      const muted = cssColor("--muted-foreground");
+      const fg = cssColor("--foreground");
+      const palette = ["--primary", "--accent", "--sage", "--secondary", "--muted-foreground", "--destructive"].map(cssColor);
+      const grid = { color: border, tickBorderDash: [3, 3] };
+      const axes = (values) => ({
+        x: { grid, border: { color: muted, dash: [3, 3] }, ticks: { color: muted, font: { size: 11 }, maxRotation: 0, autoSkipPadding: 8 } },
+        y: { grid, border: { color: muted, dash: [3, 3] }, min: 0, max: niceAxis(values).max,
+          ticks: { color: muted, font: { size: 11 }, stepSize: niceAxis(values).stepSize, callback: (v) => String(v) } },
+      });
+      // Légendes Recharts : texte de la couleur de la série.
+      const coloredLabels = (c) => {
+        const generate = window.Chart.overrides[c.config.type]?.plugins?.legend?.labels?.generateLabels
+          ?? window.Chart.defaults.plugins.legend.labels.generateLabels;
+        return generate(c).map((l) => ({ ...l, fontColor: c.config.type === "line" ? l.strokeStyle : l.fillStyle }));
+      };
+      const legend = (pointStyle) => ({ position: "bottom",
+        labels: { color: fg, font: { size: 12 }, usePointStyle: true, pointStyle, boxWidth: 14, generateLabels: coloredLabels } });
+      const money = { callbacks: { label: (ctx) => `${ctx.dataset.label ?? ctx.label} : ${eur(ctx.parsed.y ?? ctx.parsed)}` } };
+      const base = { responsive: true, maintainAspectRatio: false, animation: false };
+      this.charts = [
+        new window.Chart(this.$refs.monthly, {
+          type: "line",
+          data: {
+            labels: data.monthly.map((m) => m.month),
+            datasets: [
+              { label: "Contracté", data: data.monthly.map((m) => m.contracted), borderColor: palette[0], backgroundColor: palette[0], borderWidth: 2, pointRadius: 0, cubicInterpolationMode: "monotone", order: 1 },
+              { label: "Encaissé", data: data.monthly.map((m) => m.paid), borderColor: palette[2], backgroundColor: palette[2], borderWidth: 2, pointRadius: 0, cubicInterpolationMode: "monotone", order: 0 },
+            ],
+          },
+          options: { ...base, layout: { padding: { top: 5, right: 10 } }, scales: axes(data.monthly.flatMap((m) => [m.contracted, m.paid])),
+            plugins: { legend: { ...legend("line"), labels: { ...legend("line").labels, sort: (a, b) => a.datasetIndex - b.datasetIndex } },
+              tooltip: money } },
+        }),
+        new window.Chart(this.$refs.bySource, {
+          type: "bar",
+          data: {
+            labels: data.bySource.map((d) => d.name),
+            datasets: [{ label: "CA", data: data.bySource.map((d) => d.value), backgroundColor: data.bySource.map((_, i) => palette[i % palette.length]),
+              borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: "bottom" }],
+          },
+          options: { ...base, layout: { padding: { top: 5, right: 10 } }, scales: axes(data.bySource.map((d) => d.value)),
+            plugins: { legend: { display: false }, tooltip: money } },
+        }),
+        new window.Chart(this.$refs.collection, {
+          ...recPie(data.collection, [palette[2], palette[3]], { spacing: 3 }),
+          options: { ...base, rotation: 90, cutout: 55, radius: 85, plugins: { legend: { ...legend("rect"), reverse: true },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.label} : ${eur(ctx.parsed)}` } } } },
+        }),
+        new window.Chart(this.$refs.byStatus, {
+          ...recPie(data.byStatus, data.byStatus.map((_, i) => palette[i % palette.length])),
+          options: { ...base, rotation: 90, cutout: 0, radius: 85, plugins: { legend: { ...legend("rect"), reverse: true } } },
+          plugins: [pieLabels],
+        }),
+      ];
+    },
+  }));
+
   Alpine.data("trackingChart", (points = []) => {
     let chart = null; // hors du proxy réactif d'Alpine : Chart.js gère son propre état
     return {

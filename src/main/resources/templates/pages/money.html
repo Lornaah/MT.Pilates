@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head>
+  <title>Finance — MT Pilates</title>
+  <script th:src="@{/vendor/chart.umd.min.js}" defer></script>
+</head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    FinanceTracking. Filtres et tri sont envoyés au serveur, qui recalcule KPIs, graphiques et tableau sur la liste
+    filtrée (comme l'original) ; la ligne de filtres n'est pas re-rendue pour garder le focus de la recherche.
+  */-->
+  <div th:data-sort="${filters.sortKey()}" th:data-dir="${filters.ascending() ? 'asc' : 'desc'}" th:data-remaining="${filters.remainingOnly()}"
+       x-data="{ sort: $el.dataset.sort, dir: $el.dataset.dir, remaining: $el.dataset.remaining === 'true',
+                 refresh() { this.$nextTick(() => htmx.trigger('#finance-filters', 'refresh')); },
+                 toggleSort(key) { if (key === this.sort) { this.dir = this.dir === 'asc' ? 'desc' : 'asc'; } else { this.sort = key; this.dir = 'desc'; } this.refresh(); },
+                 showRemaining() { this.remaining = true; this.sort = 'remaining'; this.dir = 'desc'; this.refresh();
+                   document.body.addEventListener('htmx:afterSettle', () => document.getElementById('finance-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), { once: true }); } }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Administration', 'Finance',
+         'Suivi financier des abonnés : contrats, encaissements et restes à percevoir.', null, null, null, null)}"></div>
+
+    <div class="container py-6 space-y-6">
+      <div th:replace="~{::summary}"></div>
+
+      <form id="finance-filters" class="flex flex-wrap items-center gap-3" onsubmit="return false"
+            hx-get="/app/money/content" hx-target="#finance-summary" hx-swap="outerHTML"
+            hx-trigger="input changed delay:200ms from:#finance-search, change, refresh">
+        <input type="hidden" name="sort" :value="sort">
+        <input type="hidden" name="dir" :value="dir">
+        <input type="hidden" name="remaining" :value="remaining ? 'true' : ''">
+        <div class="relative flex-1 min-w-[220px]">
+          <th:block th:utext="${icons.svg('search', 'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground')}"></th:block>
+          <input class="input pl-9" id="finance-search" type="text" name="q" th:value="${filters.q()}" placeholder="Rechercher un abonné…"
+                 aria-label="Rechercher un abonné">
+        </div>
+        <select class="select w-[180px]" name="status" aria-label="Filtrer par statut">
+          <option value="all">Tous les statuts</option>
+          <option th:each="s : ${ {'active', 'paused', 'finished', 'archived'} }" th:value="${s}" th:selected="${s == filters.statusOrAll()}"
+                  th:text="${s == 'active'} ? 'Actif' : (${s == 'paused'} ? 'En pause' : (${s == 'finished'} ? 'Terminé' : 'Archivé'))"></option>
+        </select>
+        <select class="select w-[200px]" name="source" aria-label="Filtrer par source">
+          <option value="all">Toutes les sources</option>
+          <option th:each="s : ${page.sources()}" th:value="${s}" th:text="${s}" th:selected="${s == filters.sourceOrAll()}"></option>
+        </select>
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" class="btn" data-variant="ghost" data-size="sm" x-show="remaining" x-cloak
+                  @click="remaining = false; refresh()">Reset reste à percevoir</button>
+          <button type="button" class="btn" data-variant="outline" data-size="sm"
+                  @click="window.location.href = '/app/money/export?' + new URLSearchParams(new FormData($el.closest('form'))).toString()">
+            <th:block th:utext="${icons.svg('download', 'h-4 w-4 mr-2')}"></th:block> Export CSV
+          </button>
+        </div>
+      </form>
+
+      <div th:replace="~{::table(false)}"></div>
+    </div>
+    <div id="finance-dialog-slot"></div>
+  </div>
+</th:block>
+
+<!--/* Réponse aux filtres : résumé (KPIs, alerte, graphiques) et tableau hors bande. */-->
+<th:block th:fragment="content">
+  <div th:replace="~{::summary}"></div>
+  <div th:replace="~{::table(true)}"></div>
+</th:block>
+
+<div th:fragment="summary" id="finance-summary" class="space-y-6">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div th:replace="~{fragments/ui/components :: statCard('Abonnés actifs', ${page.activeCount()}, null, 'user-check', 'sage')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('CA contracté', ${page.contracted()}, null, 'trending-up', 'primary')}"></div>
+    <div th:replace="~{fragments/ui/components :: statCard('CA collecté', ${page.paid()}, null, 'wallet', 'accent')}"></div>
+    <button type="button" class="text-left rounded-2xl focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Filtrer le tableau sur les abonnés avec un reste à percevoir" @click="showRemaining()">
+      <div th:replace="~{fragments/ui/components :: statCard('Reste à percevoir', ${page.remaining()}, null, 'banknote', ${page.hasRemaining()} ? 'secondary' : 'sage')}"></div>
+    </button>
+  </div>
+
+  <div th:if="${page.hasRemaining()}" class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+    <th:block th:utext="${icons.svg('triangle-alert', 'h-5 w-5 text-amber-600 mt-0.5')}"></th:block>
+    <div>
+      <div class="font-medium text-amber-700" th:text="|${page.remaining()} à encaisser|"></div>
+      <div class="text-muted-foreground" th:text="#{finance.alert}"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" th:data-charts="${json.write(page.charts())}" x-data="financeCharts(JSON.parse($el.dataset.charts))">
+    <div th:replace="~{::chartCard('Évolution du CA (12 mois)', 'Contracté vs encaissé par mois de signature', 'monthly')}"></div>
+    <div th:replace="~{::chartCard('CA par source', 'Répartition du CA contracté', 'bySource')}"></div>
+    <div th:replace="~{::chartCard('Taux de recouvrement', 'Part encaissée vs restant dû', 'collection')}"></div>
+    <div th:replace="~{::chartCard('Abonnés par statut', 'Volume actuel', 'byStatus')}"></div>
+  </div>
+</div>
+
+<div th:fragment="chartCard(title, subtitle, ref)" class="rounded-2xl border bg-card p-5">
+  <div class="mb-4">
+    <h3 class="text-sm font-semibold" th:text="${title}"></h3>
+    <p class="text-xs text-muted-foreground" th:text="${subtitle}"></p>
+  </div>
+  <div class="h-[240px] relative"><canvas th:attr="x-ref=${ref}"></canvas></div>
+</div>
+
+<div th:fragment="table(oob)" id="finance-table" class="rounded-2xl border bg-card overflow-hidden" th:attr="hx-swap-oob=${oob} ? 'true' : null">
+  <div class="overflow-x-auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th th:replace="~{::sortHeader('Abonné', 'name', '')}"></th>
+          <th th:replace="~{::sortHeader('Statut', 'status', '')}"></th>
+          <th th:replace="~{::sortHeader('Source', 'source', 'hidden md:table-cell')}"></th>
+          <th th:replace="~{::sortHeader('Contracté', 'contracted', 'text-right')}"></th>
+          <th th:replace="~{::sortHeader('Collecté', 'paid', 'text-right')}"></th>
+          <th th:replace="~{::sortHeader('Reste', 'remaining', 'text-right')}"></th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:if="${page.rows().isEmpty()}">
+          <td colspan="7" class="text-center text-muted-foreground py-10">Aucun abonné ne correspond à ces filtres.</td>
+        </tr>
+        <tr th:each="m : ${page.rows()}">
+          <td>
+            <a th:href="@{/app/coach/members/{id}(id=${m.id()})}" class="hover:text-primary hover:underline underline-offset-2 transition-colors font-medium block"
+               th:text="${m.name()}"></a>
+            <div class="text-xs text-muted-foreground" th:text="${m.email()}"></div>
+          </td>
+          <td><span class="badge" data-variant="outline" th:classappend="${m.statusClasses()}" th:text="${m.statusLabel()}"></span></td>
+          <td class="hidden md:table-cell text-sm text-muted-foreground">
+            <th:block th:if="${m.source().isEmpty()}">—</th:block>
+            <span th:if="${m.source().isPresent()}" class="inline-flex items-center gap-1"><th:block th:text="${m.source().get()}"></th:block><th:block
+                  th:if="${m.sourceFromProspect()}" th:utext="${icons.svg('link-2', 'h-3 w-3 text-primary')}"></th:block></span>
+          </td>
+          <td class="text-right tabular-nums" th:text="${m.contracted()}"></td>
+          <td class="text-right tabular-nums">
+            <div th:text="${m.paid()}"></div>
+            <div th:if="${m.hasContract()}" class="mt-1 h-1 w-24 ml-auto rounded-full bg-muted overflow-hidden">
+              <div class="h-full bg-sage" th:style="|width: ${m.paidRatio()}%|" aria-hidden="true"></div>
+            </div>
+          </td>
+          <td class="text-right tabular-nums font-medium" th:classappend="${m.hasRemaining()} ? 'text-amber-600' : 'text-sage'" th:text="${m.remaining()}"></td>
+          <td class="text-right">
+            <div class="inline-flex gap-1 justify-end">
+              <button type="button" class="btn" data-variant="ghost" data-size="sm" th:disabled="${m.rawPhone().isEmpty() or !m.hasRemaining()}"
+                      th:aria-label="|Envoyer un rappel de paiement à ${m.name()}|"
+                      th:title="${m.rawPhone().isEmpty()} ? 'Aucun numéro de téléphone' : (${!m.hasRemaining()} ? 'Aucun reste à percevoir' : 'Rappel WhatsApp')"
+                      th:attr="hx-get=@{/app/money/{id}/reminder(id=${m.id()})}" hx-target="#finance-dialog-slot" hx-swap="innerHTML"
+                      th:utext="${icons.svg('message-circle', 'h-4 w-4 text-sage')}"></button>
+              <button type="button" class="btn" data-variant="ghost" data-size="sm" th:aria-label="|Factures de ${m.name()}|"
+                      th:attr="hx-get=@{/app/money/{id}/invoices(id=${m.id()})}" hx-target="#finance-dialog-slot" hx-swap="innerHTML">
+                <th:block th:utext="${icons.svg('receipt', 'h-4 w-4 mr-1')}"></th:block> Factures
+              </button>
+              <button type="button" class="btn" data-variant="outline" data-size="sm" th:aria-label="|Éditer le suivi financier de ${m.name()}|"
+                      th:attr="hx-get=@{/app/money/{id}/edit(id=${m.id()})}" hx-target="#finance-dialog-slot" hx-swap="innerHTML">Éditer</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<th th:fragment="sortHeader(label, key, classes)" th:class="${classes}">
+  <button type="button" class="inline-flex items-center gap-1 hover:text-foreground" th:data-key="${key}" @click="toggleSort($el.dataset.key)">
+    <th:block th:text="${label}"></th:block>
+    <span th:if="${filters.sortKey() == key}" aria-hidden="true" th:text="${filters.ascending()} ? '↑' : '↓'"></span>
+  </button>
+</th>
+
+<dialog th:fragment="editDialog" id="finance-edit" class="dialog" aria-labelledby="finance-edit-title" x-data x-init="$el.showModal()" th:with="e=${edit}">
+  <form class="sm:max-w-md" th:attr="hx-post=@{/app/money/{id}(id=${e.id()})}" hx-include="#finance-filters" hx-target="#finance-summary"
+        hx-swap="outerHTML" hx-indicator="find button[type=submit]" th:data-contracted="${e.contracted()}" th:data-installments="${e.installments()}"
+        x-data="{ contracted: $el.dataset.contracted, installments: $el.dataset.installments }">
+    <header><h2 id="finance-edit-title" th:text="${e.title()}"></h2></header>
+    <div class="space-y-4">
+      <div class="space-y-2">
+        <label class="label" for="fin-source">Source</label>
+        <div th:if="${e.lockedSource().isPresent()}" class="flex items-center gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <th:block th:utext="${icons.svg('link-2', 'h-3.5 w-3.5 text-primary')}"></th:block>
+          <span class="font-medium" th:text="${e.lockedSource().get()}"></span>
+          <span class="text-xs text-muted-foreground">(synchronisée depuis le prospect)</span>
+          <input type="hidden" name="source" th:value="${e.source()}">
+        </div>
+        <select th:unless="${e.lockedSource().isPresent()}" class="select" id="fin-source" name="source">
+          <option value="" th:selected="${e.source().isEmpty()}">—</option>
+          <option th:each="s : ${e.sources()}" th:value="${s}" th:text="${s}" th:selected="${s == e.source()}"></option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <label class="label" for="fin-contract">CA contracté (€)</label>
+          <input class="input" id="fin-contract" type="number" min="0" step="0.01" name="contracted" x-model="contracted">
+        </div>
+        <div class="space-y-2">
+          <label class="label" for="fin-paid">CA collecté (€)</label>
+          <input class="input" id="fin-paid" type="number" min="0" step="0.01" name="paid" th:value="${e.paid()}">
+        </div>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="fin-installments">Type de paiement</label>
+        <select class="select" id="fin-installments" name="installments" x-model="installments">
+          <option value="1">Paiement en une fois</option>
+          <option value="2">En 2 fois</option>
+          <option value="3">En 3 fois</option>
+          <option value="4">En 4 fois</option>
+          <option value="10">En 10 fois</option>
+        </select>
+        <p x-show="Number(contracted) > 0 && Number(installments) > 1" class="text-xs text-muted-foreground"
+           x-text="`Soit ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number(contracted) / Number(installments))} par échéance.`"></p>
+      </div>
+      <div class="space-y-2">
+        <label class="label" for="fin-notes">Notes</label>
+        <textarea class="textarea" id="fin-notes" name="notes" rows="3" placeholder="Échéancier, relances, conditions particulières…" th:text="${e.notes()}"></textarea>
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+      <button type="submit" class="btn group">
+        <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+        <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+      </button>
+    </footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </form>
+</dialog>
+
+<dialog th:fragment="invoicesDialog" id="finance-invoices" class="dialog" aria-labelledby="finance-invoices-title" x-data x-init="$el.showModal()">
+  <div class="sm:max-w-lg">
+    <header><h2 id="finance-invoices-title" th:text="|Factures — ${memberName}|"></h2></header>
+    <div th:replace="~{::invoicesBody}"></div>
+    <footer><button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Fermer</button></footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </div>
+</dialog>
+
+<div th:fragment="invoicesBody" id="finance-invoices-body" class="space-y-4">
+  <form class="rounded-xl border bg-muted/30 p-3 space-y-2" th:attr="hx-post=@{/app/money/{id}/invoices(id=${memberId})}" hx-encoding="multipart/form-data"
+        hx-target="#finance-invoices-body" hx-swap="outerHTML" hx-indicator="find button[type=submit]">
+    <label class="label text-xs leading-4 uppercase tracking-wide text-muted-foreground">Ajouter une facture</label>
+    <input class="input" type="text" name="title" placeholder="Intitulé (laisser vide pour le nom du fichier)">
+    <div class="flex gap-2">
+      <input class="input" type="file" name="file" accept="application/pdf,image/*">
+      <button type="submit" class="btn group">
+        <span class="group-[.htmx-request]:hidden">Téléverser</span>
+        <span class="hidden group-[.htmx-request]:inline">Envoi…</span>
+      </button>
+    </div>
+  </form>
+  <th:block th:if="${invoices.isEmpty()}">
+    <div th:replace="~{fragments/ui/components :: emptyState(null, null, 'Aucune facture pour ce membre.', null)}"></div>
+  </th:block>
+  <ul th:unless="${invoices.isEmpty()}" class="divide-y divide-border rounded-xl border">
+    <li th:each="d : ${invoices}" class="p-3 flex items-center gap-3">
+      <th:block th:utext="${icons.svg('receipt', 'h-4 w-4 text-primary shrink-0')}"></th:block>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium truncate" th:text="${d.title()}"></div>
+        <div class="text-xs text-muted-foreground flex flex-wrap gap-2"><span th:text="${d.uploadedLabel()}"></span><span th:text="${d.sizeLabel()}"></span></div>
+      </div>
+      <a class="btn" data-variant="ghost" data-size="sm" th:href="${d.url()}" target="_blank" rel="noreferrer" aria-label="Télécharger"
+         th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
+      <th:block th:with="dialogId=|delete-invoice-${d.id()}|">
+        <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+        <dialog class="alert-dialog" th:id="${dialogId}">
+          <div>
+            <header><h2>Supprimer cette facture ?</h2><p>Action irréversible.</p></header>
+            <footer>
+              <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+              <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/money/{id}/invoices/{doc}(id=${memberId}, doc=${d.id()})}"
+                      hx-target="#finance-invoices-body" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+            </footer>
+          </div>
+        </dialog>
+      </th:block>
+    </li>
+  </ul>
+</div>
+
+<dialog th:fragment="reminderDialog" id="finance-reminder" class="dialog" aria-labelledby="finance-reminder-title" x-data x-init="$el.showModal()">
+  <div class="sm:max-w-lg" th:data-message="${row.reminder()}" th:data-phone="${row.phone()}"
+       x-data="{ message: $el.dataset.message, phone: $el.dataset.phone,
+                 send() { if (!this.phone) return; window.open(`https://wa.me/${this.phone}?text=${encodeURIComponent(this.message)}`, '_blank', 'noopener,noreferrer'); $el.closest('dialog').close(); } }">
+    <header><h2 id="finance-reminder-title" th:text="|Rappel de paiement — ${row.name()}|"></h2></header>
+    <div class="space-y-3">
+      <div class="text-xs text-muted-foreground"
+           th:text="|Le message s'ouvrira dans WhatsApp Web vers le ${row.rawPhone().orElse('numéro inconnu')}. Tu peux l'éditer avant l'envoi.|"></div>
+      <textarea class="textarea" rows="8" x-model="message" aria-label="Message de rappel"></textarea>
+    </div>
+    <footer>
+      <button type="button" class="btn" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+      <button type="button" class="btn" :disabled="!phone || !message.trim()" @click="send()">
+        <th:block th:utext="${icons.svg('message-circle', 'h-4 w-4 mr-2')}"></th:block> Ouvrir WhatsApp
+      </button>
+    </footer>
+    <button type="button" class="dialog-close" aria-label="Fermer" onclick="this.closest('dialog').close()" th:utext="${icons.svg('x', 'h-4 w-4')}"></button>
+  </div>
+</dialog>
+</body>
+</html>
