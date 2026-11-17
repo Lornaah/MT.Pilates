@@ -1,6 +1,7 @@
 package fr.mtpilates.member;
 
 import static fr.mtpilates.shared.web.FormValues.date;
+import static fr.mtpilates.shared.web.FormValues.list;
 import static fr.mtpilates.shared.web.FormValues.text;
 
 import fr.mtpilates.auth.CurrentUser;
@@ -8,8 +9,11 @@ import fr.mtpilates.auth.DataAccessRoles;
 import fr.mtpilates.auth.EmailAlreadyRegisteredException;
 import fr.mtpilates.auth.EmailRules;
 import fr.mtpilates.auth.PasswordPolicy;
+import fr.mtpilates.profile.ProfileView;
 import fr.mtpilates.user.AppRole;
+import fr.mtpilates.user.MemberSummary;
 import fr.mtpilates.user.Profile;
+import fr.mtpilates.user.ProfileOptions;
 import fr.mtpilates.user.ProfileRepository;
 import fr.mtpilates.user.UserAccount;
 import fr.mtpilates.user.UserAccountRepository;
@@ -126,6 +130,42 @@ public class MemberService {
         profiles.save(profile);
         roles.save(new UserRole(id, AppRole.MEMBER));
         return id;
+    }
+
+    @Transactional(readOnly = true)
+    public MemberDetailView detail(final CurrentUser user, final UUID memberId) {
+        final Profile member = profiles.findById(memberId)
+                .filter(p -> policy.canView(user, p.getId(), p.getCoachId()))
+                .orElseThrow(() -> new AccessDeniedException("Fiche non consultable"));
+        final String name = fullName(member).trim();
+        return new MemberDetailView(member.getId(), name.isEmpty() ? member.getEmail() : name, member.getEmail(),
+                member.getAvatarUrl().filter(url -> !url.isEmpty()).orElse(null),
+                initialOf(member).toUpperCase(Locale.ROOT),
+                member.getStatus().orElse(MemberStatus.ACTIVE.code()),
+                member.getCoachId().map(UUID::toString).orElse(""),
+                member.getSubscriptionStartDate().map(LocalDate::toString).orElse(""),
+                member.getSubscriptionEndDate().map(LocalDate::toString).orElse(""),
+                ProfileOptions.sedentarityLabel(member.getWorkSedentarity().orElse(null)),
+                ProfileOptions.bodyTypeLabel(member.getBodyType().orElse(null)),
+                ProfileView.of(member));
+    }
+
+    /** Champs administratifs pris en compte seulement pour un manager : l'original ne les envoyait pas sinon. */
+    @Transactional
+    public void saveDetail(final CurrentUser user, final UUID memberId, final MemberDetailForm form) {
+        final Profile member = updatable(user, memberId);
+        member.updateCoachNotes(text(form.goals()).orElse(null), text(form.coachNotes()).orElse(null));
+        member.changeWeeklyTarget(member.getWeeklyTargetSessions().filter(v -> v != 0).orElse(2));
+        member.updateSummary(new MemberSummary(list(form.objectives()), list(form.allergies()), list(form.pathologies()),
+                text(form.workSedentarity()).orElse(null), text(form.bodyType()).orElse(null),
+                text(form.sportHistory()).orElse(null), text(form.coachingMotivation()).orElse(null),
+                text(form.externalSummary()).orElse(null)));
+        if (user.capacities().isManager()) {
+            final String status = MemberStatus.fromCode(form.status()).map(MemberStatus::code)
+                    .orElse(member.getStatus().orElse(MemberStatus.ACTIVE.code()));
+            member.updateMembership(status, date(form.subscriptionStartDate()).orElse(null),
+                    date(form.subscriptionEndDate()).orElse(null), coachId(form.coachId()).orElse(null));
+        }
     }
 
     /** Supprime le compte entier (fiche, rôles et données liées en cascade) plutôt que la seule fiche (Q2). */

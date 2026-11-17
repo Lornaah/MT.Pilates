@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Fiche membre — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <!--/*
+    Un seul formulaire couvre tous les onglets, comme l'état unique de l'original : le bouton « Enregistrer »
+    des notes du coach envoie aussi le résumé et, pour un manager, le statut et l'abonnement (onglet Gestion).
+  */-->
+  <form id="member-form" th:attr="hx-post=@{/app/coach/members/{id}(id=${member.id()})}"
+        hx-target="#member-summary" hx-swap="outerHTML" hx-indicator="#member-save"
+        x-data="{ tab: 'suivi', suivi: 'summary', coaching: 'program', editingSummary: false, baseline: '', dirty: false,
+                  snapshot() { return new URLSearchParams(new FormData($el)).toString(); },
+                  check() { this.$nextTick(() => { this.dirty = this.snapshot() !== this.baseline; }); } }"
+        x-init="$nextTick(() => { baseline = snapshot(); })"
+        @input="check()" @change="check()" @click="check()"
+        @htmx:after-request="if ($event.detail.successful && $event.target === $el) { editingSummary = false; $nextTick(() => { baseline = snapshot(); dirty = false; }); }">
+    <div th:replace="~{fragments/ui/components :: pageHeader('Fiche membre', ${member.displayName()}, ${member.email()},
+          ~{::bilanAction}, ~{::backLink}, ${member.avatarUrl()}, ${member.initial()})}"></div>
+    <th:block th:if="${false}">
+      <a th:fragment="backLink" href="/app/coach/members" class="btn w-fit -ml-3" data-variant="ghost" data-size="sm">
+        <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4 mr-2')}"></th:block>
+        Retour
+      </a>
+      <!--/* Le générateur de bilan PDF arrive avec le module M5. */-->
+      <button th:fragment="bilanAction" type="button" class="btn" data-variant="hero" id="bilan-open">
+        <th:block th:utext="${icons.svg('file-down', 'h-4 w-4 mr-2')}"></th:block>
+        Générer un bilan PDF
+      </button>
+    </th:block>
+
+    <div class="container py-4 md:py-8 space-y-4 md:space-y-6">
+      <div class="tabs">
+        <nav role="tablist" class="h-auto flex-wrap gap-1 bg-transparent p-0">
+          <button type="button" role="tab" :aria-selected="tab === 'suivi'" @click="tab = 'suivi'"
+                  class="aria-selected:bg-accent aria-selected:shadow-xs rounded-full px-4 py-2 text-sm font-semibold">
+            <th:block th:utext="${icons.svg('activity', 'h-4 w-4 mr-1.5')}"></th:block> Suivi
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'coaching'" @click="tab = 'coaching'"
+                  class="aria-selected:bg-accent aria-selected:shadow-xs rounded-full px-4 py-2 text-sm font-semibold">
+            <th:block th:utext="${icons.svg('calendar-range', 'h-4 w-4 mr-1.5')}"></th:block> Coaching
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'gestion'" @click="tab = 'gestion'"
+                  class="aria-selected:bg-accent aria-selected:shadow-xs rounded-full px-4 py-2 text-sm font-semibold">
+            <th:block th:utext="${icons.svg('shield', 'h-4 w-4 mr-1.5')}"></th:block> Gestion
+          </button>
+        </nav>
+
+        <div role="tabpanel" class="mt-4" x-show="tab === 'suivi'">
+          <div class="tabs">
+            <nav role="tablist" class="h-auto flex-wrap gap-1">
+              <button type="button" role="tab" :aria-selected="suivi === 'summary'" @click="suivi = 'summary'">
+                <th:block th:utext="${icons.svg('sparkles', 'h-4 w-4 mr-1')}"></th:block> Résumé
+              </button>
+              <button type="button" role="tab" :aria-selected="suivi === 'tracking'" @click="suivi = 'tracking'">
+                <th:block th:utext="${icons.svg('activity', 'h-4 w-4 mr-1')}"></th:block> Mensurations
+              </button>
+              <button type="button" role="tab" :aria-selected="suivi === 'reviews'" @click="suivi = 'reviews'">
+                <th:block th:utext="${icons.svg('heart', 'h-4 w-4 mr-1')}"></th:block> Bilans
+              </button>
+            </nav>
+
+            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'summary'">
+              <div th:fragment="summary" id="member-summary">
+                <div x-show="!editingSummary" th:insert="~{::summaryView}"></div>
+                <div x-show="editingSummary" x-cloak
+                     th:insert="~{fragments/profile/summary :: summaryForm(${member.profile()}, true)}"></div>
+              </div>
+
+              <div class="card">
+                <header><h3 class="font-display text-lg leading-7">Notes du coach (privé)</h3></header>
+                <section class="space-y-3">
+                  <div class="space-y-2">
+                    <label class="label" for="member-goals">Objectifs partagés</label>
+                    <textarea class="textarea" id="member-goals" name="goals" rows="2"
+                              th:text="${member.profile().goals()}"></textarea>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="label" for="member-notes">Notes internes</label>
+                    <textarea class="textarea" id="member-notes" name="coachNotes" rows="5"
+                              placeholder="Observations, points d'attention, plan personnalisé…"
+                              th:text="${member.profile().coachNotes()}"></textarea>
+                  </div>
+                  <div class="pt-2 flex justify-end">
+                    <button type="submit" id="member-save" class="btn group" :disabled="!dirty">
+                      <th:block th:utext="${icons.svg('save', 'h-4 w-4 mr-2')}"></th:block>
+                      <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+                      <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!--/* Mensurations (graphique, photos) et Bilans : contenus branchés avec le suivi (M4) et le bilan PDF (M5). */-->
+            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'tracking'" x-cloak id="member-tracking"></div>
+            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'reviews'" x-cloak id="member-reviews"></div>
+          </div>
+        </div>
+
+        <div role="tabpanel" class="mt-4" x-show="tab === 'coaching'" x-cloak>
+          <div class="tabs">
+            <nav role="tablist" class="h-auto flex-wrap gap-1">
+              <button type="button" role="tab" :aria-selected="coaching === 'program'" @click="coaching = 'program'">
+                <th:block th:utext="${icons.svg('calendar-range', 'h-4 w-4 mr-1')}"></th:block> Programme
+              </button>
+              <button type="button" role="tab" :aria-selected="coaching === 'habits'" @click="coaching = 'habits'">
+                <th:block th:utext="${icons.svg('apple', 'h-4 w-4 mr-1')}"></th:block> Habitudes
+              </button>
+              <button type="button" role="tab" :aria-selected="coaching === 'documents'" @click="coaching = 'documents'">
+                <th:block th:utext="${icons.svg('file-text', 'h-4 w-4 mr-1')}"></th:block> Documents
+              </button>
+              <button type="button" role="tab" :aria-selected="coaching === 'videos'" @click="coaching = 'videos'">
+                <th:block th:utext="${icons.svg('video', 'h-4 w-4 mr-1')}"></th:block> Vidéos
+              </button>
+            </nav>
+            <!--/* Contenus branchés par les modules Entraînement (M7), Habitudes (M8), Documents (M4) et Vidéos (M6). */-->
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'program'" id="member-program"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'habits'" x-cloak id="member-habits"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'documents'" x-cloak id="member-documents"></div>
+            <div role="tabpanel" class="mt-4" x-show="coaching === 'videos'" x-cloak id="member-videos"></div>
+          </div>
+        </div>
+
+        <div role="tabpanel" class="mt-4" x-show="tab === 'gestion'" x-cloak>
+          <div class="card max-w-2xl">
+            <header><h3 class="font-display text-lg leading-7">Statut &amp; abonnement</h3></header>
+            <section class="space-y-4">
+              <div th:if="${isManager}" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <label class="label" for="member-status">Statut</label>
+                  <select class="select" id="member-status" name="status">
+                    <option th:each="status : ${statuses}" th:value="${status.code()}" th:text="${status.label()}"
+                            th:selected="${status.code() == member.status()}"></option>
+                  </select>
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="member-coach">Coach assigné</label>
+                  <select class="select" id="member-coach" name="coachId">
+                    <option value="none" th:selected="${member.coachId().isEmpty()}">Aucun coach</option>
+                    <option th:each="coach : ${coaches}" th:value="${coach.id()}"
+                            th:text="${#strings.isEmpty(coach.name().trim()) ? coach.email() : coach.name()}"
+                            th:selected="${coach.id().toString() == member.coachId()}"></option>
+                  </select>
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="member-start">Début abo.</label>
+                  <div th:replace="~{fragments/ui/components :: datePicker('member-start', 'subscriptionStartDate', ${member.subscriptionStartDate()}, 'Début abo.', false, null)}"></div>
+                </div>
+                <div class="space-y-2">
+                  <label class="label" for="member-end">Fin abo.</label>
+                  <div th:replace="~{fragments/ui/components :: datePicker('member-end', 'subscriptionEndDate', ${member.subscriptionEndDate()}, 'Fin abo.', false, null)}"></div>
+                </div>
+              </div>
+              <th:block th:unless="${isManager}">
+                <span th:replace="~{fragments/ui/components :: statusBadge(${member.status()})}"></span>
+              </th:block>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</th:block>
+
+<!--/* MemberSummaryView : lecture seule du résumé. */-->
+<div th:fragment="summaryView" class="card">
+  <header class="flex flex-row items-center justify-between gap-4">
+    <h3 class="font-display text-xl leading-7">Résumé du membre</h3>
+    <button type="button" class="btn" data-variant="outline" data-size="sm" @click="editingSummary = true">
+      <th:block th:utext="${icons.svg('pen-line', 'h-4 w-4 mr-2')}"></th:block>
+      Éditer
+    </button>
+  </header>
+  <section class="space-y-5" th:with="p=${member.profile()}">
+    <div class="space-y-1">
+      <div class="text-xs uppercase tracking-wider text-muted-foreground">Dominante / Objectifs</div>
+      <div class="flex flex-wrap gap-1.5">
+        <span th:if="${p.objectives().isEmpty()}" class="text-sm text-muted-foreground">Aucun</span>
+        <span th:each="o : ${p.objectives()}" class="badge rounded-full" th:text="${o}"></span>
+      </div>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-muted-foreground">Allergies</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span th:if="${p.allergies().isEmpty()}" class="text-sm text-muted-foreground">Aucune</span>
+          <span th:each="a : ${p.allergies()}" class="badge rounded-full" data-variant="destructive" th:text="${a}"></span>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-muted-foreground">Pathologies</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span th:if="${p.pathologies().isEmpty()}" class="text-sm text-muted-foreground">Aucune</span>
+          <span th:each="a : ${p.pathologies()}" class="badge rounded-full" data-variant="secondary" th:text="${a}"></span>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-muted-foreground">Sédentarité au travail</div>
+        <div><span class="badge rounded-full" data-variant="outline" th:text="${member.sedentarityLabel()}"></span></div>
+      </div>
+      <div class="space-y-1">
+        <div class="text-xs uppercase tracking-wider text-muted-foreground">Morphotype</div>
+        <div><span class="badge rounded-full" data-variant="outline" th:text="${member.bodyTypeLabel()}"></span></div>
+      </div>
+    </div>
+    <div class="space-y-1">
+      <div class="text-xs uppercase tracking-wider text-muted-foreground">Historique sportif</div>
+      <div>
+        <p class="text-sm whitespace-pre-wrap"><th:block th:unless="${#strings.isEmpty(p.sportHistory())}" th:text="${p.sportHistory()}"></th:block><span th:if="${#strings.isEmpty(p.sportHistory())}" class="text-muted-foreground">Non renseigné</span></p>
+      </div>
+    </div>
+    <div class="space-y-1">
+      <div class="text-xs uppercase tracking-wider text-muted-foreground">Pourquoi un coach</div>
+      <div th:insert="~{::quote(${p.coachingMotivation()})}"></div>
+    </div>
+    <div class="space-y-1">
+      <div class="text-xs uppercase tracking-wider text-muted-foreground">Résumé libre</div>
+      <div th:insert="~{::quote(${p.externalSummary()})}"></div>
+    </div>
+  </section>
+</div>
+
+<th:block th:fragment="quote(text)">
+  <blockquote th:unless="${#strings.isEmpty(text)}" class="border-l-4 border-primary/40 pl-3 italic text-sm whitespace-pre-wrap"
+              th:text="|&quot;${text}&quot;|"></blockquote>
+  <span th:if="${#strings.isEmpty(text)}" class="text-sm text-muted-foreground">Non renseigné</span>
+</th:block>
+</body>
+</html>

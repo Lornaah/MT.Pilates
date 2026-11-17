@@ -44,7 +44,7 @@ public class ProfileService {
 
     @Transactional(readOnly = true)
     public ProfileView own(final CurrentUser user) {
-        return toView(load(user.id()));
+        return ProfileView.of(load(user.id()));
     }
 
     /** Vrai pour un membre (non staff) qui n'a pas encore terminé l'onboarding (OnboardingGate de l'original). */
@@ -135,33 +135,4 @@ public class ProfileService {
         return ext.matches("[a-z0-9]{1,8}") ? ext : "png";
     }
 
-    private static ProfileView toView(final Profile p) {
-        final Map<String, Object> diet = p.getDietaryPreferences();
-        return new ProfileView(p.getEmail(), p.getFirstName().orElse(""), p.getLastName().orElse(""), p.getPhone().orElse(""),
-                p.getDateOfBirth().map(Object::toString).orElse(""), p.getAvatarUrl().orElse(null),
-                initialOf(p), p.getStatus().orElse("active"),
-                p.getGoals().orElse(""), number(p.getHeightCm()), number(p.getWeightKg()),
-                String.valueOf(p.getWeeklyTargetSessions().orElse(2)), p.getBio().orElse(""),
-                p.getObjectives(), p.getAllergies(), p.getPathologies(),
-                p.getWorkSedentarity().orElse(""), p.getBodyType().orElse(""), p.getSportHistory().orElse(""),
-                p.getCoachingMotivation().orElse(""), p.getExternalSummary().orElse(""), p.getCoachNotes().orElse(""),
-                p.getAvailableEquipment(), p.getAvailability(),
-                String.valueOf(diet.getOrDefault("diet_type", "Omnivore")), stringList(diet.get("dislikes")),
-                stringList(diet.get("likes")), String.valueOf(diet.getOrDefault("meals_per_day", 3)),
-                Optional.ofNullable(diet.get("weekly_budget")).map(String::valueOf).orElse(""),
-                Optional.ofNullable(diet.get("cooking_time")).map(String::valueOf).orElse(""));
-    }
-
-    private static String initialOf(final Profile p) {
-        final String source = p.getFirstName().filter(s -> !s.isEmpty()).orElse(p.getEmail());
-        return source.isEmpty() ? "?" : source.substring(0, 1);
-    }
-
-    private static String number(final Optional<BigDecimal> value) {
-        return value.map(BigDecimal::stripTrailingZeros).map(BigDecimal::toPlainString).orElse("");
-    }
-
-    private static List<String> stringList(final Object value) {
-        return value instanceof List<?> items ? items.stream().map(String::valueOf).toList() : List.of();
-    }
 }
