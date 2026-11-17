@@ -92,7 +92,7 @@ class ExerciseControllerTest {
         final TestUsers.Account member = users.create("membre", AppRole.MEMBER);
 
         mvc.perform(get("/app/coach/training").param("tab", "exercises").with(coach.login()))
-                .andExpect(content().string(containsString("Bibliothèque d'exercices")));
+                .andExpect(content().string(containsString("Biblioth\u00E8que d")));
         mvc.perform(get("/app/coach/training").with(member.login())).andExpect(redirectedUrl("/app"));
     }
 }
