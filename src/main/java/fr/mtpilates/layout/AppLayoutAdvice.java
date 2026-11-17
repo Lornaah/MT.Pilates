@@ -17,10 +17,19 @@ public class AppLayoutAdvice {
 
     private final CurrentUserService currentUsers;
     private final ConfigService config;
+    private final SidebarFactory sidebars;
 
-    public AppLayoutAdvice(final CurrentUserService currentUsers, final ConfigService config) {
+    public AppLayoutAdvice(final CurrentUserService currentUsers, final ConfigService config,
+                           final SidebarFactory sidebars) {
         this.currentUsers = currentUsers;
         this.config = config;
+        this.sidebars = sidebars;
+    }
+
+    /** Libellés configurables (statuts, rôles, sources…), utilisés par les fragments communs. */
+    @ModelAttribute("labels")
+    public Labels labels() {
+        return config.labels();
     }
 
     @ModelAttribute("currentUser")
@@ -30,7 +39,7 @@ public class AppLayoutAdvice {
 
     @ModelAttribute("sidebar")
     public Optional<SidebarView> sidebar(final HttpServletRequest request) {
-        return currentUsers.current().map(user -> toView(user, config.labels(), request.getRequestURI()));
+        return currentUsers.current().map(user -> sidebars.build(user, config.labels(), request.getRequestURI()));
     }
 
     @ModelAttribute("viewAsOptions")
@@ -51,16 +60,5 @@ public class AppLayoutAdvice {
     @ModelAttribute("primaryRoleLabel")
     public Optional<String> primaryRoleLabel() {
         return currentUsers.current().map(user -> PrimaryRoleLabel.of(user.effectiveRoles()));
-    }
-
-    private static SidebarView toView(final CurrentUser user, final Labels labels, final String path) {
-        return new SidebarView(NavigationBuilder.build(user.capacities()).stream()
-                .map(zone -> new SidebarView.Zone(zone.title(), zone.groups().stream()
-                        .map(group -> new SidebarView.Group(group.title(), group.items().stream()
-                                .map(item -> new SidebarView.Link(item.path(), item.icon(),
-                                        labels.label(item.labelKey(), item.labelFallback()), item.isActive(path)))
-                                .toList()))
-                        .toList()))
-                .toList());
     }
 }

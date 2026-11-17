@@ -23,6 +23,16 @@ public class AppConfigEntry {
     protected AppConfigEntry() {
     }
 
+    public AppConfigEntry(final String key, final String value) {
+        this.id = UUID.randomUUID();
+        this.key = key;
+        this.value = value;
+    }
+
+    public void changeValue(final String newValue) {
+        this.value = newValue;
+    }
+
     public String getKey() {
         return key;
     }

@@ -60,7 +60,8 @@ Décisions : `INVENTORY.md` §9. Reste R3 : identifiants des comptes de test, à
 - Legacy : `pages/Auth.tsx`, `hooks/useAuth.tsx`, `lib/validation/*`, `components/auth/*`, `components/layout/*`, `components/ProtectedRoute.tsx`, `OnboardingGate.tsx`, `pages/app/owner/Team.tsx`, `services/authService.ts`.
 
 ## M2 — Configuration de l'application
-- Page `/app/owner/settings` : 7 sections, accordéons, Enregistrer (insert/update), Réinitialiser (valeurs vidées).
+- Page `/app/owner/settings` : 6 sections (« Titres de pages » non reprise, Q10), accordéons, Enregistrer (insert/update),
+  Réinitialiser (valeurs vidées) ; barre latérale rafraîchie hors bande après enregistrement.
 - `LabelService` : `statusLabel`, `eventTypeLabel`, `videoLevelLabel`, `roleLabel`, `sourceLabel`, `prospectStatusLabel`, `prospectColLabel` ;
   `ObjectivesService` (`program_objectives` CSV).
 - Legacy : `pages/app/owner/AppSettings.tsx`, `settings-config.ts`, `hooks/useAppConfig.tsx`, `useLabels.ts`, `useObjectives.ts`.

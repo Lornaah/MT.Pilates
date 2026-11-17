@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Configuration — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+<!--/* Section active et groupes ouverts : état purement visuel, gardé par Alpine (comme useState dans l'original). */-->
+<div x-data="{ active: 'nav', expanded: { 'nav-0': true },
+               select(id) { this.active = id; this.expanded = { [id + '-0']: true }; },
+               toggle(key) { this.expanded = { ...this.expanded, [key]: !this.expanded[key] }; } }">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Owner', #{settings.title}, #{settings.description}, ~{::settingsActions}, null, null, null)}"></div>
+  <th:block th:if="${false}">
+    <div th:fragment="settingsActions" class="flex gap-2">
+      <button type="button" class="btn" data-variant="outline" data-size="sm"
+              onclick="document.getElementById('settings-reset').showModal()">Réinitialiser</button>
+      <button type="button" class="btn group" data-variant="hero"
+              hx-post="/app/owner/settings" hx-include="#settings-form" hx-swap="none">
+        <th:block th:utext="${icons.svg('save', 'h-4 w-4')}"></th:block>
+        <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+        <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+      </button>
+    </div>
+  </th:block>
+
+  <div class="container py-8 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6">
+    <div class="card h-fit">
+      <div class="p-2">
+        <div class="text-[10px] uppercase tracking-widest text-muted-foreground px-3 py-2 flex items-center gap-1">
+          <th:block th:utext="${icons.svg('settings', 'h-3 w-3')}"></th:block>
+          Sections
+        </div>
+        <nav class="space-y-0.5">
+          <button th:each="section : ${sections}" type="button" th:attr="data-id=${section.id()}"
+                  @click="select($el.dataset.id)"
+                  :class="active === $el.dataset.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/60'"
+                  class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+            <th:block th:utext="${icons.svg(section.icon(), 'h-4 w-4 shrink-0')}"></th:block>
+            <span class="truncate" th:text="${section.title()}"></span>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <form id="settings-form" onsubmit="return false">
+      <div th:fragment="fields" id="settings-fields">
+        <div th:each="section : ${sections}" class="space-y-4" th:attr="data-id=${section.id()}"
+             x-show="active === $el.dataset.id">
+          <div>
+            <h2 class="font-display text-2xl" th:text="${section.title()}"></h2>
+            <p class="text-sm text-muted-foreground mt-1" th:text="${section.description()}"></p>
+          </div>
+          <div th:each="group, it : ${section.groups()}" class="card" th:attr="data-key=|${section.id()}-${it.index}|">
+            <div class="p-0">
+              <button type="button" class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30"
+                      @click="toggle($el.closest('[data-key]').dataset.key)">
+                <span class="font-display text-lg" th:text="${group.subtitle()}"></span>
+                <span x-show="expanded[$el.closest('[data-key]').dataset.key]" th:utext="${icons.svg('chevron-up', 'h-4 w-4 text-muted-foreground')}"></span>
+                <span x-show="!expanded[$el.closest('[data-key]').dataset.key]" th:utext="${icons.svg('chevron-down', 'h-4 w-4 text-muted-foreground')}"></span>
+              </button>
+              <div class="px-4 pb-4 space-y-3" x-show="expanded[$el.closest('[data-key]').dataset.key]">
+                <div th:each="item : ${group.keys()}" class="space-y-1">
+                  <label class="label text-xs leading-4 text-muted-foreground" th:for="|cfg-${item.key()}|">
+                    <th:block th:text="${item.label()}"></th:block>
+                    <span class="font-mono text-[10px] opacity-60" th:text="|(${item.key()})|"></span>
+                  </label>
+                  <input class="input" type="text" th:id="|cfg-${item.key()}|" th:name="|cfg.${item.key()}|"
+                         th:value="${labels.raw(item.key())}" th:placeholder="${item.label()}">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <dialog id="settings-reset" class="alert-dialog">
+    <div>
+      <header>
+        <h2>Réinitialiser la configuration ?</h2>
+        <p>Toutes les valeurs personnalisées seront effacées. Les libellés par défaut seront restaurés.</p>
+      </header>
+      <footer>
+        <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+        <button type="button" class="btn bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                hx-post="/app/owner/settings/reset" hx-target="#settings-fields" hx-swap="outerHTML"
+                onclick="this.closest('dialog').close()">Réinitialiser</button>
+      </footer>
+    </div>
+  </dialog>
+</div>
+</th:block>
+
+<!--/* Réponses HTMX : barre latérale hors bande (+ champs vidés après réinitialisation). */-->
+<th:block th:fragment="saved">
+  <div th:replace="~{fragments/app/sidebar-nav :: nav}"></div>
+</th:block>
+<th:block th:fragment="resetResult">
+  <div th:replace="~{pages/settings :: fields}"></div>
+  <div th:replace="~{fragments/app/sidebar-nav :: nav}"></div>
+</th:block>
+</body>
+</html>

@@ -208,3 +208,23 @@
     </footer>
   </div>
 </dialog>
+
+<!--/* StatusBadge : statut membre avec libellé configurable (statut absent = actif, comme l'original). */-->
+<span th:fragment="statusBadge(status)" class="badge"
+      th:with="s=${status != null ? status : 'active'}"
+      th:attr="data-variant=${s == 'active' ? 'success' : (s == 'paused' ? 'warm' : (s == 'finished' ? 'outline' : 'secondary'))}"
+      th:text="${labels.status(s)}"></span>
+
+<!--/* ObjectiveSelector : puces à bascule sur la liste program_objectives ; `name` est le paramètre répété soumis. */-->
+<div th:fragment="objectiveSelector(name, selected)" class="flex flex-wrap gap-2"
+     th:attr="x-data=|{ selected: ${json.write(selected != null ? selected : {})} }|">
+  <button th:each="objective : ${labels.objectives()}" type="button" class="focus:outline-hidden"
+          th:attr="data-value=${objective}"
+          @click="selected.includes($el.dataset.value) ? selected = selected.filter(v => v !== $el.dataset.value) : selected.push($el.dataset.value)"
+          :aria-pressed="selected.includes($el.dataset.value)">
+    <span class="badge rounded-full cursor-pointer" :data-variant="selected.includes($el.closest('button').dataset.value) ? 'default' : 'outline'"
+          th:text="${objective}"></span>
+  </button>
+  <template x-for="value in selected" :key="value"><input type="hidden" th:name="${name}" :value="value"></template>
+  <span th:if="${labels.objectives().isEmpty()}" class="text-xs text-muted-foreground">Aucun objectif configuré</span>
+</div>

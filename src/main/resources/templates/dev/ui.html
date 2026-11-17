@@ -80,6 +80,15 @@
             <div th:replace="~{fragments/ui/components :: datePicker('demo-datetime', 'appointmentAt', null, 'RDV de closing', true, null)}"></div>
           </div>
           <div class="space-y-2">
+            <span class="label">Dominante / Objectifs</span>
+            <div th:replace="~{fragments/ui/components :: objectiveSelector('objectives', ${ {'Mobilité'} })}"></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <th:block th:each="s : ${ {'active','paused','archived','finished'} }">
+              <span th:replace="~{fragments/ui/components :: statusBadge(${s})}"></span>
+            </th:block>
+          </div>
+          <div class="space-y-2">
             <span class="label">Pathologies</span>
             <div th:replace="~{fragments/ui/components :: tagInput('pathologies', ${ {'Asthme'} }, 'Hernie discale, asthme…', 'secondary')}"></div>
           </div>
