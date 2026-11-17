@@ -15,6 +15,7 @@
 
 @source "../../resources/templates";
 @source "../../java";
+@source "../../resources/static/offline.html";
 
 /* Les thèmes posent leurs couleurs sur [data-theme] : la variante `dark:` suit le même attribut. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

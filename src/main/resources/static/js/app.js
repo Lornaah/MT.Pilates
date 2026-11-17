@@ -1,6 +1,32 @@
 // Composants Alpine de l'interface (état purement client). Aucune logique métier ici :
 // les données et les règles viennent du serveur, via HTMX.
+// Application installable : service worker (page hors ligne) et invite d'installation native (Android / Chrome).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstall = event;
+});
+window.addEventListener("appinstalled", () => { deferredInstall = null; });
+
 document.addEventListener("alpine:init", () => {
+  // « Installer l'app » : invite native si le navigateur la propose, sinon les instructions de l'original (iOS…).
+  Alpine.data("installApp", () => ({
+    standalone: window.matchMedia("(display-mode: standalone)").matches,
+    ios: /iphone|ipad/i.test(navigator.userAgent),
+    async install() {
+      if (deferredInstall) {
+        const prompt = deferredInstall;
+        deferredInstall = null;
+        await prompt.prompt();
+        return;
+      }
+      this.$refs.installDialog.showModal();
+    },
+  }));
+
   const pad = (n) => String(n).padStart(2, "0");
   const isoDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const sameDay = (a, b) => a && b && isoDate(a) === isoDate(b);

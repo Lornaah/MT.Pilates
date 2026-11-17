@@ -39,7 +39,7 @@
         </select>
         <!--/* Radix Popover focalise le premier champ ; 50 ms : le popover est invisible pendant la première frame de sa transition. */-->
         <div class="relative" @click.outside="filtersOpen = false" @keydown.escape="filtersOpen = false">
-          <button type="button" class="btn h-10 rounded-full px-4 gap-2 bg-card border-border/80 relative" data-variant="outline"
+          <button type="button" class="btn h-10 w-full sm:w-auto rounded-full px-4 gap-2 bg-card border-border/80 relative" data-variant="outline"
                   @click="filtersOpen = !filtersOpen; filtersOpen && setTimeout(() => $el.parentElement.querySelector('[data-popover] select').focus(), 50)">
             <th:block th:utext="${icons.svg('sliders-horizontal', 'h-4 w-4')}"></th:block>
             <span class="hidden sm:inline">Filtres</span>

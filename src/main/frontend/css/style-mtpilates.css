@@ -30,8 +30,10 @@
   .btn[data-variant='sage'] { @apply bg-sage text-sage-foreground hover:bg-sage/90; }
 
   /* -------------------------------------------------------------- Badge */
+  /* Le Badge shadcn peut rétrécir et passer à la ligne : on annule w-fit, shrink-0 et nowrap de Basecoat. */
   .badge {
     @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    @apply w-auto shrink justify-normal overflow-visible whitespace-normal;
   }
   .badge:not([data-variant]),
   .badge[data-variant='default'] { @apply border-transparent bg-primary text-primary-foreground hover:bg-primary/80; }
