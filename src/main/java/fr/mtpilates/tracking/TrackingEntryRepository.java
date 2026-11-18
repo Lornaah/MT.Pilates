@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TrackingEntryRepository extends JpaRepository<TrackingEntry, UUID> {
 
     List<TrackingEntry> findByUserIdOrderByDateDesc(UUID userId, Limit limit);
+
+    List<TrackingEntry> findByUserIdOrderByDateAsc(UUID userId);
 }

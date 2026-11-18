@@ -1,0 +1,64 @@
+<!--/* Bilans d'un membre (onglet « Bilans » de la fiche) : brouillons et bilans envoyés. */-->
+<div th:fragment="list" id="bilan-list" class="card">
+  <header class="flex-row items-center justify-between space-y-0">
+    <div>
+      <h3 class="font-display text-lg leading-7">Bilans PDF</h3>
+      <p class="text-xs text-muted-foreground mt-1">Brouillons en cours et bilans envoyés à la membre.</p>
+    </div>
+    <button type="button" class="btn" data-size="sm" th:attr="hx-post=@{/app/coach/members/{id}/bilans(id=${memberId})}" hx-swap="none">
+      <th:block th:utext="${icons.svg('file-down', 'h-4 w-4 mr-2')}"></th:block> Nouveau bilan
+    </button>
+  </header>
+  <section class="space-y-2">
+    <p th:if="${bilans.isEmpty()}" class="text-sm text-muted-foreground">Aucun bilan généré pour l'instant.</p>
+    <div th:each="b : ${bilans}" class="flex flex-wrap items-center gap-3 border-b border-border last:border-0 py-3">
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-sm" th:text="${b.period()}"></div>
+        <div class="text-xs text-muted-foreground mt-0.5"
+             th:text="${b.sent()} ? |Envoyé le ${b.sentOn().orElse('')}| : |Brouillon créé le ${b.createdOn()}|"></div>
+      </div>
+      <span th:if="${b.weightDelta().isPresent()}" class="badge" th:attr="data-variant=${b.weightDelta().get().startsWith('-')} ? 'default' : 'secondary'"
+            th:text="${b.weightDelta().get()}"></span>
+      <span class="badge" th:attr="data-variant=${b.sent()} ? 'success' : 'outline'" th:text="${b.sent()} ? 'Envoyé' : 'Brouillon'"></span>
+      <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/coach/bilans/{id}(id=${b.id()})}"
+         th:text="${b.sent()} ? 'Voir' : 'Reprendre'"></a>
+      <a th:if="${b.sent()}" class="btn" data-variant="ghost" data-size="sm" aria-label="Télécharger" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}"
+         th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
+      <th:block th:with="dialogId=|delete-bilan-${b.id()}|">
+        <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm" aria-label="Supprimer"
+                th:attr="data-dialog=${dialogId}" onclick="document.getElementById(this.dataset.dialog).showModal()"
+                th:utext="${icons.svg('trash-2', 'h-4 w-4')}"></button>
+        <dialog class="alert-dialog" th:id="${dialogId}">
+          <div>
+            <header><h2>Supprimer ce bilan ?</h2>
+              <p th:text="${b.sent()} ? #{bilan.delete.sent} : 'Le brouillon et ses réglages seront supprimés.'"></p></header>
+            <footer>
+              <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+              <button type="button" class="btn" data-variant="destructive" th:attr="hx-delete=@{/app/coach/bilans/{id}(id=${b.id()})}"
+                      hx-target="#bilan-list" hx-swap="outerHTML" onclick="this.closest('dialog').close()">Supprimer</button>
+            </footer>
+          </div>
+        </dialog>
+      </th:block>
+    </div>
+  </section>
+</div>
+
+<!--/* Bilans envoyés, côté membre (« Mon suivi ») : téléchargement du PDF. */-->
+<div th:fragment="mine(bilans)" id="my-bilans" class="card">
+  <header>
+    <h3 class="font-display text-lg leading-7">Mes bilans</h3>
+    <p class="text-xs text-muted-foreground mt-1">Les bilans de transformation envoyés par ta coach.</p>
+  </header>
+  <section class="space-y-2">
+    <div th:each="b : ${bilans}" class="flex flex-wrap items-center gap-3 border-b border-border last:border-0 py-3">
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-sm" th:text="${b.period()}"></div>
+        <div class="text-xs text-muted-foreground mt-0.5" th:text="|Reçu le ${b.sentOn().orElse('')}|"></div>
+      </div>
+      <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}">
+        <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block> Télécharger
+      </a>
+    </div>
+  </section>
+</div>

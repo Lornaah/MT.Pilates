@@ -721,6 +721,103 @@ document.addEventListener("alpine:init", () => {
     },
   }));
 
+  // Éditeur de bilan : réglages, vues photo, textes. Tout part en JSON (champ `content`) à l'enregistrement.
+  Alpine.data("bilanEditor", (content, photos, template) => ({
+    content: {
+      durations: content.durations ?? {},
+      measures: content.measures ?? [],
+      views: content.views ?? {},
+      texts: content.texts ?? {},
+    },
+    photos,
+    template,
+    dirty: false,
+    get payload() { return JSON.stringify(this.content); },
+    touch() { this.dirty = true; },
+    view(code) {
+      if (!this.content.views[code]) {
+        this.content.views[code] = { enabled: false, before: null, after: null, beforeStrokes: [], afterStrokes: [] };
+      }
+      return this.content.views[code];
+    },
+    photosOf(code) { return this.photos.filter((p) => p.side === code); },
+    photoUrl(id) { return this.photos.find((p) => p.id === id)?.url; },
+    setPhoto(code, which, id) {
+      const view = this.view(code);
+      view[which] = id || null;
+      view[`${which}Strokes`] = [];
+      this.touch();
+    },
+    toggleMeasure(key) {
+      const list = this.content.measures;
+      this.content.measures = list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
+      this.touch();
+    },
+    setDuration(key, value) { this.content.durations = { ...this.content.durations, [key]: value }; this.touch(); },
+    setText(key, value) { this.content.texts[key] = value; this.touch(); },
+    changed(key) { return (this.content.texts[key] ?? "") !== (this.template[key] ?? ""); },
+    restore(key) { this.content.texts[key] = this.template[key] ?? ""; this.touch(); },
+    refreshPreview() {
+      this.dirty = false;
+      const frame = this.$refs.preview;
+      frame.src = `${frame.src.split("?")[0]}?t=${Date.now()}`;
+    },
+  }));
+
+  // Annotation d'une photo du bilan : traits au crayon en coordonnées relatives (0 à 1), redessinés sur la photo.
+  Alpine.data("annotator", (code, which) => ({
+    color: which === "before" ? "#e11d48" : "#16a34a",
+    drawing: null,
+    image: null,
+    init() {
+      this.image = new Image();
+      this.image.onload = () => this.redraw();
+      this.image.src = this.photoUrl(this.view(code)[which]);
+      this.$watch(() => this.view(code)[which], (id) => { this.image.src = this.photoUrl(id); });
+    },
+    strokes() { return this.view(code)[`${which}Strokes`] ?? []; },
+    setStrokes(list) { this.view(code)[`${which}Strokes`] = list; this.touch(); },
+    point(event) {
+      const rect = this.$refs.canvas.getBoundingClientRect();
+      return [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
+    },
+    start(event) {
+      this.$refs.canvas.setPointerCapture(event.pointerId);
+      this.drawing = { color: this.color, width: 0.006, points: [this.point(event)] };
+    },
+    move(event) {
+      if (!this.drawing) return;
+      this.drawing.points.push(this.point(event));
+      this.redraw();
+    },
+    end() {
+      if (!this.drawing) return;
+      this.setStrokes([...this.strokes(), this.drawing]);
+      this.drawing = null;
+      this.redraw();
+    },
+    undo() { this.setStrokes(this.strokes().slice(0, -1)); this.redraw(); },
+    clear() { this.setStrokes([]); this.redraw(); },
+    redraw() {
+      const canvas = this.$refs.canvas;
+      if (!canvas || !this.image.naturalWidth) return;
+      canvas.width = this.image.naturalWidth;
+      canvas.height = this.image.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(this.image, 0, 0);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (const s of [...this.strokes(), ...(this.drawing ? [this.drawing] : [])]) {
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.width * canvas.width;
+        ctx.beginPath();
+        s.points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * canvas.width, y * canvas.height) : ctx.lineTo(x * canvas.width, y * canvas.height)));
+        if (s.points.length === 1) ctx.lineTo(s.points[0][0] * canvas.width + 0.1, s.points[0][1] * canvas.height);
+        ctx.stroke();
+      }
+    },
+  }));
+
   // RecipeLibrary : onglet, recherche et filtres (l'allergène exclut les recettes qui le contiennent).
   Alpine.data("recipeFilters", () => ({
     tab: "all",

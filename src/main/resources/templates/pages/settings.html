@@ -11,6 +11,9 @@
   <div th:replace="~{fragments/ui/components :: pageHeader('Owner', #{settings.title}, #{settings.description}, ~{::settingsActions}, null, null, null)}"></div>
   <th:block th:if="${false}">
     <div th:fragment="settingsActions" class="flex gap-2">
+      <a class="btn" data-variant="outline" data-size="sm" href="/app/owner/bilan-template">
+        <th:block th:utext="${icons.svg('file-text', 'h-4 w-4')}"></th:block> Modèle de bilan
+      </a>
       <button type="button" class="btn" data-variant="outline" data-size="sm"
               onclick="document.getElementById('settings-reset').showModal()">Réinitialiser</button>
       <button type="button" class="btn group" data-variant="hero"

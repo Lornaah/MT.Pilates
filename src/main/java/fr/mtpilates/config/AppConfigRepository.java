@@ -4,4 +4,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AppConfigRepository extends JpaRepository<AppConfigEntry, UUID> {
+
+    java.util.Optional<AppConfigEntry> findByKey(String key);
 }

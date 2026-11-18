@@ -84,17 +84,24 @@ Décisions : `INVENTORY.md` §9. Reste R3 : identifiants des comptes de test, à
 - Legacy : `pages/app/members/*`, `components/members/*`, `pages/app/MyTracking.tsx`, services `profiles`, `tracking`, `memberPhotos`, `memberDocuments`, `weeklyReviews`.
 
 ## M5 — Bilan PDF
-- Dialog de génération (période, poids de départ/objectif, aperçu des deltas, sélection photos avant/après, upload ponctuel non persisté).
-- `BilanCalculator` (port de `computeBilan`, testé), génération PDF serveur (openhtmltopdf), aperçu iframe, téléchargement,
-  snapshot `member_reports` ; onglet « Bilans » (liste, suppression).
-- **Modèle visuel cible = le PDF de référence fourni par la cliente** (« TON 1er MOIS DE TRANSFORMATION », 12 pages), et non le PDF A4 de
-  l'ancienne app : format paysage 16:9 (900 × 507 pt), fond crème, titres capitales sans-serif (type Montserrat), corps serif, encarts
-  taupe arrondis, graphiques en aires (poids avec ligne d'objectif, hanches, cuisses, bras), pages photos avant/après par vue avec
-  4 points commentés, « Ce que ces résultats veulent dire », « Mais le plus important » (01–03), barre de progression vers l'objectif,
-  « Sois fière de toi ». Le PDF de référence contient des données personnelles : il n'est **pas** versionné.
-- À préciser au démarrage de M5 : polices exactes, illustrations (balance, mètre ruban, silhouette, pictogrammes), photos annotées
-  (traits rouges/verts dessinés à la main dans l'exemple : hors périmètre sauf demande), textes variables selon la durée (1er mois, N semaines…).
-- Legacy : `components/bilan/*`, `lib/bilan/*`, `services/memberReportsService.ts`.
+Spécification validée par la cliente (réponses du 17/11/2026) :
+- **Format** : celui du PDF de référence « TON 1er MOIS DE TRANSFORMATION » (paysage 16:9, fond crème, titres capitales
+  sans-serif, corps serif, encarts taupe arrondis, gros chiffres, graphiques en aires), avec les polices standard du PDF.
+  Les illustrations (balance, mètre, silhouette) ne sont pas reprises : les photos de la membre occupent ces places.
+  Le PDF de référence contient des données personnelles : il n'est **pas** versionné.
+- **Brouillon prêt d'office** : « Générer un bilan » (fiche membre) crée un brouillon déjà rempli à partir des données
+  saisies (période, mesures, photos avant/après par vue, textes du modèle) ; le coach relit, ajuste et envoie.
+- **Réglages du coach** : période, poids de départ (optionnel) et objectif, durée affichée (calculée, modifiable),
+  mensurations à inclure (cases à cocher), vues photo (face / profil / dos) avec photo avant et après choisies parmi les
+  photos envoyées par la membre, **annotations dessinées** sur les photos (traits rouges / verts), textes modifiables.
+- **Modèle de textes** : un modèle par défaut (textes du PDF de référence, avec variables : prénom, durée, kg et cm,
+  objectif, progression…), **modifiable par l'owner** (page Configuration > Modèle de bilan) ; le coach modifie ensuite
+  les textes de chaque bilan.
+- **Brouillon / envoi** : enregistrement en brouillon, reprise plus tard, aperçu du PDF ; « Envoyer » fige le PDF,
+  l'envoie par email à la membre (pièce jointe) et le rend téléchargeable dans son espace (« Mon suivi »).
+- Onglet « Bilans » de la fiche membre : brouillons et bilans envoyés (ouvrir, télécharger, supprimer).
+- Technique : table `member_reports` étendue (statut, contenu, PDF), calcul porté de `computeBilan`, rendu
+  openhtmltopdf (Q6), graphiques et photos annotées dessinés côté serveur (Java2D), PDF stocké dans un bucket privé.
 
 ## M6 — Vidéos
 - `/app/coach/videos` (ajout, suppression, extraction ID YouTube), `/app/videos` (filtres, lecteur, `video_views`), historique vidéos de la fiche membre.

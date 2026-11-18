@@ -23,7 +23,9 @@ public final class Flash {
                            final String targetPath, final Map<String, ?> attributes) {
         final FlashMap flash = new FlashMap();
         flash.putAll(attributes);
-        flash.setTargetRequestPath(request.getContextPath() + targetPath);
+        // Le FlashMap est comparé à l'URI sans query string : « /x?onglet » ne serait jamais servi.
+        final int query = targetPath.indexOf('?');
+        flash.setTargetRequestPath(request.getContextPath() + (query < 0 ? targetPath : targetPath.substring(0, query)));
         MANAGER.saveOutputFlashMap(flash, request, response);
     }
 }

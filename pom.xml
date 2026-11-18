@@ -67,6 +67,12 @@
             <artifactId>commonmark</artifactId>
             <version>0.24.0</version>
         </dependency>
+        <!-- Génération des bilans PDF (décision Q6) : fork maintenu d'openhtmltopdf. -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.1.100</version>
+        </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>

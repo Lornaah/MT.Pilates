@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Modèle de bilan — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page">
+  <div th:replace="~{fragments/ui/components :: pageHeader('Owner', 'Modèle de bilan',
+       #{bilan.template.description}, ~{::templateActions}, ~{::backLink}, null, null)}"></div>
+  <th:block th:if="${false}">
+    <a th:fragment="backLink" href="/app/owner/settings" class="btn -ml-3" data-variant="ghost" data-size="sm">
+      <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4')}"></th:block> Configuration
+    </a>
+    <div th:fragment="templateActions" class="flex gap-2">
+      <button type="button" class="btn" data-variant="outline" data-size="sm" onclick="document.getElementById('template-reset').showModal()">
+        Rétablir le modèle par défaut
+      </button>
+      <button type="button" class="btn group" data-variant="hero" hx-post="/app/owner/bilan-template" hx-include="#template-form" hx-swap="none">
+        <th:block th:utext="${icons.svg('save', 'h-4 w-4')}"></th:block>
+        <span class="group-[.htmx-request]:hidden">Enregistrer</span>
+        <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+      </button>
+    </div>
+  </th:block>
+
+  <div class="container py-8 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+    <form id="template-form" class="space-y-4" onsubmit="return false">
+      <details th:each="section, it : ${sections}" class="card group" th:open="${it.first}">
+        <summary class="cursor-pointer list-none flex items-center justify-between p-6">
+          <span class="font-display text-lg" th:text="${section.title()}"></span>
+          <th:block th:utext="${icons.svg('chevron-down', 'h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180')}"></th:block>
+        </summary>
+        <section class="space-y-4">
+          <div th:each="f : ${section.fields()}" class="space-y-2">
+            <label class="label" th:for="|tpl-${f.key()}|" th:text="${f.label()}"></label>
+            <input th:if="${f.rows() == 1}" class="input" type="text" th:id="|tpl-${f.key()}|" th:name="${f.key()}" th:value="${texts.get(f.key())}">
+            <textarea th:unless="${f.rows() == 1}" class="textarea" th:id="|tpl-${f.key()}|" th:name="${f.key()}" th:rows="${f.rows()}"
+                      th:text="${texts.get(f.key())}"></textarea>
+          </div>
+        </section>
+      </details>
+    </form>
+
+    <aside class="card h-fit lg:sticky lg:top-20">
+      <header><h2 class="font-display text-lg leading-7">Variables</h2></header>
+      <section class="space-y-3 text-sm">
+        <p class="text-muted-foreground" th:text="#{bilan.template.help}"></p>
+        <ul class="space-y-1.5">
+          <li th:each="v : ${variables}"><code class="text-xs font-mono bg-muted rounded-sm px-1 py-0.5" th:text="|{${v.key}}|"></code>
+            <span class="text-muted-foreground text-xs" th:text="${v.value}"></span></li>
+        </ul>
+        <p class="text-muted-foreground text-xs" th:utext="#{bilan.template.markup}"></p>
+      </section>
+    </aside>
+  </div>
+
+  <dialog class="alert-dialog" id="template-reset">
+    <div>
+      <header><h2>Rétablir le modèle par défaut ?</h2><p th:text="#{bilan.template.reset}"></p></header>
+      <footer>
+        <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+        <button type="button" class="btn" data-variant="destructive" hx-post="/app/owner/bilan-template/reset" hx-swap="none"
+                onclick="this.closest('dialog').close()">Rétablir</button>
+      </footer>
+    </div>
+  </dialog>
+</th:block>
+</body>
+</html>

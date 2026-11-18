@@ -13,7 +13,7 @@
   */-->
   <form id="member-form" th:attr="hx-post=@{/app/coach/members/{id}(id=${member.id()})}"
         hx-target="#member-summary" hx-swap="outerHTML" hx-indicator="#member-save"
-        x-data="{ tab: 'suivi', suivi: 'summary', coaching: 'program', editingSummary: false, baseline: '', dirty: false,
+        x-data="{ tab: 'suivi', suivi: new URLSearchParams(location.search).has('bilans') ? 'reviews' : 'summary', coaching: 'program', editingSummary: false, baseline: '', dirty: false,
                   snapshot() { return new URLSearchParams(new FormData($el)).toString(); },
                   check() { this.$nextTick(() => { this.dirty = this.snapshot() !== this.baseline; }); } }"
         x-init="$nextTick(() => { baseline = snapshot(); })"
@@ -26,8 +26,9 @@
         <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4 mr-2')}"></th:block>
         Retour
       </a>
-      <!--/* Le générateur de bilan PDF arrive avec le module M5. */-->
-      <button th:fragment="bilanAction" type="button" class="btn" data-variant="hero" id="bilan-open">
+      <!--/* Crée un brouillon de bilan déjà rempli et ouvre son éditeur. */-->
+      <button th:fragment="bilanAction" type="button" class="btn group" data-variant="hero" id="bilan-open"
+              th:attr="hx-post=@{/app/coach/members/{id}/bilans(id=${memberId})}" hx-swap="none">
         <th:block th:utext="${icons.svg('file-down', 'h-4 w-4 mr-2')}"></th:block>
         Générer un bilan PDF
       </button>
@@ -96,12 +97,13 @@
               </div>
             </div>
 
-            <!--/* Bilans : contenu branché avec le bilan PDF (M5). */-->
             <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'tracking'" x-cloak id="member-tracking">
               <div th:replace="~{fragments/tracking/chart :: card(${memberId}, ${chartPoints})}"></div>
               <div th:replace="~{fragments/tracking/photos :: card(${memberId}, ${photos})}"></div>
             </div>
-            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'reviews'" x-cloak id="member-reviews"></div>
+            <div role="tabpanel" class="space-y-4 mt-4" x-show="suivi === 'reviews'" x-cloak id="member-reviews">
+              <div th:replace="~{fragments/bilan/list :: list}"></div>
+            </div>
           </div>
         </div>
 

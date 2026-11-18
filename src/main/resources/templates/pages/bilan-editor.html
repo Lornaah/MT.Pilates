@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/app}">
+<head><title>Bilan — MT Pilates</title></head>
+<body>
+<th:block layout:fragment="page" th:with="b=${bilan}">
+  <!--/*
+    Éditeur de bilan : le brouillon arrive pré-rempli (période, mensurations, photos, textes du modèle).
+    Réglages et textes vivent dans Alpine et partent en JSON ; l'aperçu est le PDF rendu par le serveur.
+  */-->
+  <form id="bilan-form" onsubmit="return false" th:data-content="${b.contentJson()}" th:data-photos="${json.write(b.photos())}"
+        th:data-template="${json.write(templateTexts)}"
+        x-data="bilanEditor(JSON.parse($el.dataset.content), JSON.parse($el.dataset.photos), JSON.parse($el.dataset.template))"
+        @bilan-saved.window="refreshPreview()" @input="touch()">
+    <input type="hidden" name="content" :value="payload">
+
+    <div th:replace="~{fragments/ui/components :: pageHeader('Bilan', |Bilan de ${b.memberName()}|, #{bilan.editor.description},
+         ~{::editorActions}, ~{::backLink}, null, null)}"></div>
+    <th:block th:if="${false}">
+      <a th:fragment="backLink" th:href="@{/app/coach/members/{id}(id=${b.memberId()}, bilans='')}" class="btn w-fit -ml-3" data-variant="ghost" data-size="sm">
+        <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4 mr-2')}"></th:block> Fiche membre
+      </a>
+      <div th:fragment="editorActions" class="flex flex-wrap gap-2">
+        <th:block th:unless="${b.sent()}">
+          <button type="button" class="btn group" data-variant="outline" th:attr="hx-post=@{/app/coach/bilans/{id}(id=${b.id()})}"
+                  hx-include="#bilan-form" hx-swap="none">
+            <th:block th:utext="${icons.svg('save', 'h-4 w-4')}"></th:block>
+            <span class="group-[.htmx-request]:hidden">Enregistrer le brouillon</span>
+            <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+          </button>
+          <button type="button" class="btn" data-variant="hero" onclick="document.getElementById('bilan-send').showModal()">
+            <th:block th:utext="${icons.svg('send', 'h-4 w-4')}"></th:block> Envoyer à la membre
+          </button>
+        </th:block>
+        <a th:if="${b.sent()}" class="btn" data-variant="hero" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}">
+          <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block> Télécharger le PDF
+        </a>
+      </div>
+    </th:block>
+
+    <div class="container py-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6">
+      <fieldset class="space-y-6 min-w-0" th:disabled="${b.sent()}">
+        <div th:if="${b.sent()}" class="rounded-xl border border-success/30 bg-success/10 p-4 text-sm" th:text="#{bilan.editor.sent}"></div>
+
+        <div class="card">
+          <header><h2 class="font-display text-lg leading-7">Période et objectif</h2></header>
+          <section class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-2"><label class="label" for="bilan-start">Début</label>
+                <input class="input" type="date" id="bilan-start" name="periodStart" th:value="${b.periodStart()}"></div>
+              <div class="space-y-2"><label class="label" for="bilan-end">Fin</label>
+                <input class="input" type="date" id="bilan-end" name="periodEnd" th:value="${b.periodEnd()}"></div>
+              <div class="space-y-2"><label class="label" for="bilan-target">Poids objectif (kg)</label>
+                <input class="input" type="number" step="0.1" id="bilan-target" name="targetWeight" th:value="${b.targetWeight()}"
+                       placeholder="Facultatif"></div>
+              <div class="space-y-2"><label class="label" for="bilan-startw">Poids de départ (kg)</label>
+                <input class="input" type="number" step="0.1" id="bilan-startw" name="startWeight" th:value="${b.startWeight()}"
+                       placeholder="Première pesée de la période"></div>
+            </div>
+            <div class="space-y-2">
+              <div class="label">Durée affichée</div>
+              <p class="text-xs text-muted-foreground" th:text="#{bilan.editor.durations}"></p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div th:each="d : ${b.computedDurations()}" class="space-y-1" th:data-key="${d.key}">
+                  <label class="label text-xs leading-4 text-muted-foreground" th:text="|{${d.key}}|"></label>
+                  <input class="input" type="text" th:placeholder="${d.value}" :value="content.durations?.[$el.closest('[data-key]').dataset.key] ?? ''"
+                         @input="setDuration($el.closest('[data-key]').dataset.key, $event.target.value)">
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="card">
+          <header><h2 class="font-display text-lg leading-7">Mensurations à inclure</h2>
+            <p th:text="#{bilan.editor.metrics}"></p></header>
+          <section class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label th:each="m : ${b.metrics()}" class="flex items-center gap-3 rounded-lg border p-3 text-sm"
+                   th:classappend="${m.available()} ? 'cursor-pointer' : 'opacity-50'" th:data-key="${m.key()}">
+              <input class="input" type="checkbox" th:disabled="${!m.available()}" :checked="content.measures.includes($el.closest('[data-key]').dataset.key)"
+                     @change="toggleMeasure($el.closest('[data-key]').dataset.key)">
+              <span class="flex-1" th:text="${m.label()}"></span>
+              <span class="text-muted-foreground tabular-nums" th:text="${m.available()} ? ${m.delta()} : 'Pas assez de mesures'"></span>
+            </label>
+          </section>
+        </div>
+
+        <div class="card">
+          <header><h2 class="font-display text-lg leading-7">Photos avant / après</h2>
+            <p th:text="#{bilan.editor.photos}"></p></header>
+          <section class="space-y-6">
+            <div th:each="v : ${ {'back', 'side', 'front'} }" th:data-view="${v}" x-data="{ code: $el.dataset.view }" class="space-y-3">
+              <label class="flex items-center gap-2 text-sm font-semibold">
+                <input class="input" type="checkbox" :checked="view(code).enabled" @change="view(code).enabled = $event.target.checked; touch()">
+                <span th:text="${v == 'back'} ? 'Vue de dos' : (${v == 'side'} ? 'Vue de profil' : 'Vue de face')"></span>
+                <span class="text-xs font-normal text-muted-foreground" x-show="photosOf(code).length < 2" th:text="#{bilan.editor.photos.missing}"></span>
+              </label>
+              <div x-show="view(code).enabled" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <th:block th:each="which : ${ {'before', 'after'} }">
+                  <div class="space-y-2" th:data-which="${which}" x-data="{ which: $el.dataset.which }">
+                    <select class="select" :value="view(code)[which] ?? ''" @change="setPhoto(code, which, $event.target.value)"
+                            th:aria-label="${which == 'before'} ? 'Photo avant' : 'Photo après'">
+                      <option value="" th:text="${which == 'before'} ? 'Photo avant…' : 'Photo après…'"></option>
+                      <template x-for="p in photosOf(code)" :key="p.id">
+                        <option :value="p.id" x-text="p.takenOn" :selected="p.id === view(code)[which]"></option>
+                      </template>
+                    </select>
+                    <template x-if="view(code)[which]">
+                      <div x-data="annotator(code, which)" class="space-y-2">
+                        <div class="relative rounded-lg overflow-hidden border bg-muted">
+                          <canvas x-ref="canvas" class="w-full touch-none cursor-crosshair block"
+                                  @pointerdown="start($event)" @pointermove="move($event)" @pointerup="end()" @pointerleave="end()"></canvas>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1">
+                          <button type="button" class="h-6 w-6 rounded-full border-2" style="background: #e11d48" aria-label="Crayon rouge"
+                                  :class="color === '#e11d48' ? 'border-foreground' : 'border-transparent'" @click="color = '#e11d48'"></button>
+                          <button type="button" class="h-6 w-6 rounded-full border-2" style="background: #16a34a" aria-label="Crayon vert"
+                                  :class="color === '#16a34a' ? 'border-foreground' : 'border-transparent'" @click="color = '#16a34a'"></button>
+                          <button type="button" class="btn ml-auto" data-variant="ghost" data-size="sm" @click="undo()" :disabled="strokes().length === 0">
+                            <th:block th:utext="${icons.svg('undo-2', 'h-4 w-4')}"></th:block> Annuler
+                          </button>
+                          <button type="button" class="btn text-destructive" data-variant="ghost" data-size="sm" @click="clear()" :disabled="strokes().length === 0">
+                            <th:block th:utext="${icons.svg('eraser', 'h-4 w-4')}"></th:block> Effacer
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </th:block>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="card">
+          <header><h2 class="font-display text-lg leading-7">Textes du bilan</h2>
+            <p th:text="#{bilan.editor.texts}"></p></header>
+          <section class="space-y-3">
+            <details th:each="section : ${sections}" class="group rounded-lg border">
+              <summary class="cursor-pointer list-none flex items-center justify-between px-4 py-3 text-sm font-semibold">
+                <span th:text="${section.title()}"></span>
+                <th:block th:utext="${icons.svg('chevron-down', 'h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180')}"></th:block>
+              </summary>
+              <div class="space-y-3 px-4 pb-4">
+                <div th:each="f : ${section.fields()}" class="space-y-1" th:data-key="${f.key()}">
+                  <div class="flex items-center justify-between">
+                    <label class="label text-xs leading-4" th:for="|txt-${f.key()}|" th:text="${f.label()}"></label>
+                    <button type="button" class="text-xs text-muted-foreground hover:text-foreground" x-show="changed($el.closest('[data-key]').dataset.key)"
+                            @click="restore($el.closest('[data-key]').dataset.key)">Reprendre le modèle</button>
+                  </div>
+                  <textarea class="textarea text-sm" th:id="|txt-${f.key()}|" th:rows="${f.rows()}"
+                            :value="content.texts[$el.closest('[data-key]').dataset.key] ?? ''"
+                            @input="setText($el.closest('[data-key]').dataset.key, $event.target.value)"></textarea>
+                </div>
+              </div>
+            </details>
+            <p class="text-xs text-muted-foreground">
+              <th:block th:text="#{bilan.editor.variables}"></th:block>
+              <th:block th:each="v, it : ${variables}"><code class="font-mono" th:text="|{${v.key}}|"></code><th:block th:unless="${it.last}">, </th:block></th:block>.
+              <th:block th:utext="#{bilan.template.markup}"></th:block>
+            </p>
+          </section>
+        </div>
+      </fieldset>
+
+      <div class="xl:sticky xl:top-20 h-fit space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-lg">Aperçu du PDF</h2>
+          <button type="button" class="btn" data-variant="outline" data-size="sm" th:unless="${b.sent()}"
+                  th:attr="hx-post=@{/app/coach/bilans/{id}(id=${b.id()})}" hx-include="#bilan-form" hx-swap="none">
+            <th:block th:utext="${icons.svg('refresh-cw', 'h-4 w-4')}"></th:block> Mettre à jour l'aperçu
+          </button>
+        </div>
+        <p class="text-xs text-muted-foreground" x-show="dirty" x-cloak th:text="#{bilan.editor.dirty}"></p>
+        <iframe x-ref="preview" class="w-full rounded-lg border bg-card aspect-[4/3]" title="Aperçu du bilan"
+                th:src="@{/app/coach/bilans/{id}/pdf(id=${b.id()})}"></iframe>
+      </div>
+    </div>
+  </form>
+
+  <dialog class="alert-dialog" id="bilan-send" th:unless="${bilan.sent()}">
+    <div>
+      <header><h2>Envoyer le bilan ?</h2><p th:text="#{bilan.editor.send}"></p></header>
+      <footer>
+        <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
+        <button type="button" class="btn group" data-variant="hero" th:attr="hx-post=@{/app/coach/bilans/{id}/send(id=${bilan.id()})}"
+                hx-include="#bilan-form" hx-swap="none" hx-on::after-request="this.closest('dialog').close()">
+          <span class="group-[.htmx-request]:hidden">Envoyer</span>
+          <span class="hidden group-[.htmx-request]:inline">Envoi…</span>
+        </button>
+      </footer>
+    </div>
+  </dialog>
+</th:block>
+</body>
+</html>

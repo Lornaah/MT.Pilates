@@ -2,6 +2,7 @@ package fr.mtpilates.tracking;
 
 import fr.mtpilates.auth.CurrentUser;
 import fr.mtpilates.auth.CurrentUserService;
+import fr.mtpilates.bilan.BilanService;
 import fr.mtpilates.shared.web.Toast;
 import fr.mtpilates.shared.web.ToastResponses;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,16 +32,19 @@ public class TrackingController {
     private final TrackingService tracking;
     private final WeeklyReviewService reviews;
     private final MemberPhotoService photos;
+    private final BilanService bilans;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
     private final Clock clock;
 
     public TrackingController(final TrackingService tracking, final WeeklyReviewService reviews,
-                              final MemberPhotoService photos, final CurrentUserService currentUsers,
+                              final MemberPhotoService photos, final BilanService bilans,
+                              final CurrentUserService currentUsers,
                               final ToastResponses toasts, final Clock clock) {
         this.tracking = tracking;
         this.reviews = reviews;
         this.photos = photos;
+        this.bilans = bilans;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
         this.clock = clock;
@@ -54,6 +58,7 @@ public class TrackingController {
         model.addAttribute("weekStart", reviews.currentWeekStart().toString());
         model.addAttribute("measures", Measure.values());
         model.addAttribute("photos", photos.photos(user, user.id()));
+        model.addAttribute("myBilans", bilans.mine(user));
         fillReviews(model, user);
         fillEntries(model, user);
         return PAGE;

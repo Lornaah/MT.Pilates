@@ -1,6 +1,7 @@
 package fr.mtpilates.member;
 
 import fr.mtpilates.auth.CurrentUser;
+import fr.mtpilates.bilan.BilanService;
 import fr.mtpilates.auth.CurrentUserService;
 import fr.mtpilates.shared.web.Toast;
 import fr.mtpilates.shared.web.ToastResponses;
@@ -33,6 +34,7 @@ public class MemberDetailController {
     private final VideoService videos;
     private final PlanningService planning;
     private final HabitService habits;
+    private final BilanService bilans;
     private final CurrentUserService currentUsers;
     private final ToastResponses toasts;
     private final Clock clock;
@@ -40,7 +42,8 @@ public class MemberDetailController {
     public MemberDetailController(final MemberService members, final MemberDocumentService documents,
                                   final MemberPhotoService photos, final TrackingChartService chart,
                                   final VideoService videos, final PlanningService planning,
-                                  final HabitService habits, final CurrentUserService currentUsers, final ToastResponses toasts, final Clock clock) {
+                                  final HabitService habits, final BilanService bilans, final CurrentUserService currentUsers,
+                                  final ToastResponses toasts, final Clock clock) {
         this.members = members;
         this.documents = documents;
         this.photos = photos;
@@ -48,6 +51,7 @@ public class MemberDetailController {
         this.videos = videos;
         this.planning = planning;
         this.habits = habits;
+        this.bilans = bilans;
         this.currentUsers = currentUsers;
         this.toasts = toasts;
         this.clock = clock;
@@ -69,6 +73,7 @@ public class MemberDetailController {
         model.addAttribute("hasPrograms", planning.hasPrograms(id));
         model.addAttribute("habitTracking", habits.tracking(user, id, 30));
         model.addAttribute("programSections", planning.memberPrograms(user, id));
+        model.addAttribute("bilans", bilans.forMember(user, id));
         return "pages/member-detail";
     }
 
