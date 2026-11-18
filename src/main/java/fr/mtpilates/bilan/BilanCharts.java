@@ -31,7 +31,10 @@ public final class BilanCharts {
     private static final int BOTTOM = 56;
     private static final int TICKS = 3;
 
-    public record Style(boolean fromZero, boolean gradient) {
+    /** Demi-hauteur de la fenêtre du poids autour de la pesée de départ, en kg. */
+    private static final double WEIGHT_WINDOW = 10;
+
+    public record Style(boolean aroundStart, boolean gradient) {
         public static final Style WEIGHT = new Style(true, true);
         public static final Style MEASURE = new Style(false, false);
     }
@@ -67,15 +70,21 @@ public final class BilanCharts {
         }
     }
 
-    /** Bornes et pas des graduations : depuis 0 pour le poids, resserré autour des valeurs pour une mensuration. */
+    /**
+     * Bornes et pas des graduations. Poids : départ ± 10 kg (élargi si une valeur ou l'objectif en sort), pour que la
+     * courbe reste lisible même avec une petite perte. Mensuration : resserré autour des valeurs.
+     */
     static double[] range(final List<BilanCalculator.WeekPoint> points, final Style style, final Optional<Double> goal) {
         final double max = Math.max(points.stream().mapToDouble(BilanCalculator.WeekPoint::value).max().orElse(1),
                 goal.orElse(Double.NEGATIVE_INFINITY));
         final double min = Math.min(points.stream().mapToDouble(BilanCalculator.WeekPoint::value).min().orElse(0),
                 goal.orElse(Double.POSITIVE_INFINITY));
-        if (style.fromZero()) {
-            final double step = niceStep(max / TICKS);
-            return new double[] {0, max * 1.05, step};
+        if (style.aroundStart() && !points.isEmpty()) {
+            final double start = points.get(0).value();
+            final double lo = Math.min(start - WEIGHT_WINDOW, min);
+            final double hi = Math.max(start + WEIGHT_WINDOW, max);
+            final double step = niceStep((hi - lo) / (TICKS * 2));
+            return new double[] {Math.floor(lo / step) * step, Math.ceil(hi / step) * step, step};
         }
         final double step = niceStep(Math.max(1, max - min) / TICKS);
         return new double[] {Math.floor(min / step) * step - step, Math.ceil(max / step) * step, step};

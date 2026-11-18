@@ -21,25 +21,24 @@
         <th:block th:utext="${icons.svg('arrow-left', 'h-4 w-4 mr-2')}"></th:block> Fiche membre
       </a>
       <div th:fragment="editorActions" class="flex flex-wrap gap-2">
-        <th:block th:unless="${b.sent()}">
-          <button type="button" class="btn group" data-variant="outline" th:attr="hx-post=@{/app/coach/bilans/{id}(id=${b.id()})}"
-                  hx-include="#bilan-form" hx-swap="none">
-            <th:block th:utext="${icons.svg('save', 'h-4 w-4')}"></th:block>
-            <span class="group-[.htmx-request]:hidden">Enregistrer le brouillon</span>
-            <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
-          </button>
-          <button type="button" class="btn" data-variant="hero" onclick="document.getElementById('bilan-send').showModal()">
-            <th:block th:utext="${icons.svg('send', 'h-4 w-4')}"></th:block> Envoyer à la membre
-          </button>
-        </th:block>
-        <a th:if="${b.sent()}" class="btn" data-variant="hero" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}">
-          <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block> Télécharger le PDF
+        <a th:if="${b.sent()}" class="btn" data-variant="outline" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}">
+          <th:block th:utext="${icons.svg('download', 'h-4 w-4')}"></th:block> PDF envoyé
         </a>
+        <button type="button" class="btn group" data-variant="outline" th:attr="hx-post=@{/app/coach/bilans/{id}(id=${b.id()})}"
+                hx-include="#bilan-form" hx-swap="none">
+          <th:block th:utext="${icons.svg('save', 'h-4 w-4')}"></th:block>
+          <span class="group-[.htmx-request]:hidden" th:text="${b.sent()} ? 'Enregistrer' : 'Enregistrer le brouillon'"></span>
+          <span class="hidden group-[.htmx-request]:inline">Enregistrement…</span>
+        </button>
+        <button type="button" class="btn" data-variant="hero" onclick="document.getElementById('bilan-send').showModal()">
+          <th:block th:utext="${icons.svg(b.sent() ? 'refresh-cw' : 'send', 'h-4 w-4')}"></th:block>
+          <span th:text="${b.sent()} ? 'Mettre à jour le bilan' : 'Envoyer à la membre'"></span>
+        </button>
       </div>
     </th:block>
 
     <div class="container py-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6">
-      <fieldset class="space-y-6 min-w-0" th:disabled="${b.sent()}">
+      <div class="space-y-6 min-w-0">
         <div th:if="${b.sent()}" class="rounded-xl border border-success/30 bg-success/10 p-4 text-sm" th:text="#{bilan.editor.sent}"></div>
 
         <div class="card">
@@ -161,12 +160,12 @@
             </p>
           </section>
         </div>
-      </fieldset>
+      </div>
 
       <div class="xl:sticky xl:top-20 h-fit space-y-2">
         <div class="flex items-center justify-between">
           <h2 class="font-display text-lg">Aperçu du PDF</h2>
-          <button type="button" class="btn" data-variant="outline" data-size="sm" th:unless="${b.sent()}"
+          <button type="button" class="btn" data-variant="outline" data-size="sm"
                   th:attr="hx-post=@{/app/coach/bilans/{id}(id=${b.id()})}" hx-include="#bilan-form" hx-swap="none">
             <th:block th:utext="${icons.svg('refresh-cw', 'h-4 w-4')}"></th:block> Mettre à jour l'aperçu
           </button>
@@ -178,14 +177,20 @@
     </div>
   </form>
 
-  <dialog class="alert-dialog" id="bilan-send" th:unless="${bilan.sent()}">
+  <dialog class="alert-dialog" id="bilan-send">
     <div>
-      <header><h2>Envoyer le bilan ?</h2><p th:text="#{bilan.editor.send}"></p></header>
+      <header>
+        <h2 th:text="${bilan.sent()} ? 'Mettre à jour le bilan ?' : 'Envoyer le bilan ?'"></h2>
+        <p th:text="${bilan.sent()} ? #{bilan.editor.update} : #{bilan.editor.send}"></p>
+      </header>
+      <label th:if="${bilan.sent()}" class="label gap-3 font-normal text-sm leading-5">
+        <input type="checkbox" class="input" id="bilan-notify" name="notify" value="true"> Prévenir la membre par email, avec le nouveau PDF
+      </label>
       <footer>
         <button type="button" class="btn mt-2 sm:mt-0" data-variant="outline" onclick="this.closest('dialog').close()">Annuler</button>
         <button type="button" class="btn group" data-variant="hero" th:attr="hx-post=@{/app/coach/bilans/{id}/send(id=${bilan.id()})}"
-                hx-include="#bilan-form" hx-swap="none" hx-on::after-request="this.closest('dialog').close()">
-          <span class="group-[.htmx-request]:hidden">Envoyer</span>
+                hx-include="#bilan-form, #bilan-notify" hx-swap="none" hx-on::after-request="this.closest('dialog').close()">
+          <span class="group-[.htmx-request]:hidden" th:text="${bilan.sent()} ? 'Mettre à jour' : 'Envoyer'"></span>
           <span class="hidden group-[.htmx-request]:inline">Envoi…</span>
         </button>
       </footer>

@@ -130,8 +130,39 @@ class BilanControllerTest {
         mvc.perform(get("/app/bilans/{id}/pdf", id).with(stranger.login())).andExpect(status().isNotFound());
         mvc.perform(get("/app/tracking").with(member.login()))
                 .andExpect(content().string(containsString("Mes bilans")));
+    }
+
+    @Test
+    void coachEditsASentBilanAndPublishesTheUpdateWithOrWithoutEmail() throws Exception {
+        final TestUsers.Account coach = users.create("coach", AppRole.COACH);
+        final TestUsers.Account member = coachedWithMeasures(coach);
+        final UUID id = createDraft(coach, member);
+        send(coach, id, "55", false);
+        final byte[] sentPdf = download(member, id);
+        mails.clear();
+
         save(coach, id, "2026-09-01", "2026-10-01", "50")
-                .andExpect(header().string("HX-Trigger", containsString("d\\u00E9j\\u00E0 \\u00E9t\\u00E9 envoy\\u00E9")));
+                .andExpect(header().string("HX-Trigger", containsString("Modifications enregistr")));
+        assertThat(download(member, id)).isEqualTo(sentPdf);
+
+        send(coach, id, "50", false);
+        assertThat(mails.sent()).isEmpty();
+        assertThat(download(member, id)).isNotEqualTo(sentPdf);
+
+        send(coach, id, "50", true);
+        assertThat(mails.sent()).hasSize(1);
+    }
+
+    private void send(final TestUsers.Account coach, final UUID id, final String target, final boolean notify) throws Exception {
+        mvc.perform(post("/app/coach/bilans/{id}/send", id).with(coach.login()).with(csrf())
+                        .param("periodStart", "2026-09-01").param("periodEnd", "2026-10-01").param("targetWeight", target)
+                        .param("notify", notify ? "true" : "").param("content", currentContent(id)))
+                .andExpect(header().exists("HX-Redirect"));
+    }
+
+    private byte[] download(final TestUsers.Account member, final UUID id) throws Exception {
+        return mvc.perform(get("/app/bilans/{id}/pdf", id).with(member.login()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
     }
 
     @Test

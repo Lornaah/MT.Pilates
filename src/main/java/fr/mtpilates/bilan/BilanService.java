@@ -132,13 +132,13 @@ public class BilanService {
                 BilanVariables.computedDurations(snapshot, firstFollowUp(report.getUserId())));
     }
 
-    /** Enregistrement du brouillon ; un bilan envoyé n'est plus modifiable. */
+    /**
+     * Enregistrement des réglages. Pour un bilan déjà envoyé, la membre garde la version envoyée tant que le coach
+     * n'a pas publié la mise à jour. Renvoie vrai si le bilan a déjà été envoyé.
+     */
     @Transactional
-    public void save(final CurrentUser user, final UUID reportId, final BilanSettingsForm form) {
+    public boolean save(final CurrentUser user, final UUID reportId, final BilanSettingsForm form) {
         final MemberReport report = managed(user, reportId);
-        if (report.isSent()) {
-            throw new IllegalArgumentException("Ce bilan a déjà été envoyé");
-        }
         final LocalDate start = date(form.periodStart()).orElse(report.getPeriodStart());
         final LocalDate end = date(form.periodEnd()).orElse(report.getPeriodEnd());
         if (end.isBefore(start)) {
@@ -147,31 +147,37 @@ public class BilanService {
         final BilanContent content = parse(form.content());
         report.updateSettings(start, end, FormValues.decimal(form.targetWeight()).orElse(null),
                 FormValues.decimal(form.startWeight()).orElse(null), toMap(content));
+        return report.isSent();
     }
 
-    /** Aperçu du brouillon (ou PDF envoyé, pour un bilan envoyé). */
+    /** Aperçu des réglages enregistrés, y compris les modifications pas encore publiées d'un bilan envoyé. */
     @Transactional(readOnly = true)
     public byte[] preview(final CurrentUser user, final UUID reportId) {
-        final MemberReport report = managed(user, reportId);
-        return report.isSent() ? stored(report).orElseGet(() -> render(report)) : render(report);
+        return render(managed(user, reportId));
     }
 
+    /** Issue d'un envoi ou d'une mise à jour. */
+    public enum SendResult { MAILED, MAIL_FAILED, UPDATED }
+
     /**
-     * Envoi : PDF figé et stocké, instantané des chiffres conservé, email à la membre avec le PDF en pièce jointe.
-     * Renvoie faux si l'email n'a pas pu partir (le bilan reste disponible dans l'espace de la membre).
+     * Envoi : PDF stocké, instantané des chiffres conservé, email à la membre avec le PDF en pièce jointe.
+     * Pour un bilan déjà envoyé, c'est une mise à jour : le PDF de l'espace membre est remplacé et l'email ne repart
+     * que si le coach le demande. Si l'email échoue, le bilan reste disponible dans l'espace de la membre.
      */
     @Transactional
-    public boolean send(final CurrentUser user, final UUID reportId, final String appLink) {
+    public SendResult send(final CurrentUser user, final UUID reportId, final String appLink, final boolean notify) {
         final MemberReport report = managed(user, reportId);
-        if (report.isSent()) {
-            throw new IllegalArgumentException("Ce bilan a déjà été envoyé");
-        }
+        final boolean update = report.isSent();
         final byte[] pdf = render(report);
         final String path = report.getUserId() + "/" + report.getId() + ".pdf";
         storage.store(new StorageKey(BUCKET, path), new ByteArrayInputStream(pdf), "application/pdf");
         report.markSent(snapshotJson(snapshot(report)), path, clock.instant());
+        if (update && !notify) {
+            return SendResult.UPDATED;
+        }
         final Profile member = profiles.findById(report.getUserId()).orElseThrow();
-        return mailer.send(member.getEmail(), member.getFirstName().orElse(""), filename(report), pdf, appLink);
+        return mailer.send(member.getEmail(), member.getFirstName().orElse(""), filename(report), pdf, appLink)
+                ? SendResult.MAILED : SendResult.MAIL_FAILED;
     }
 
     @Transactional

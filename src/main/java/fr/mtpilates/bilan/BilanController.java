@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /** Bilans : création du brouillon, éditeur du coach, aperçu, envoi, suppression et téléchargement. */
@@ -60,8 +61,9 @@ public class BilanController {
     public ResponseEntity<Void> save(@PathVariable final UUID id, @ModelAttribute final BilanSettingsForm form,
                                      final HttpServletResponse response) {
         try {
-            bilans.save(currentUsers.require(), id, form);
-            toasts.trigger(response, Toast.success("Brouillon enregistré"), Map.of("bilan-saved", true));
+            final boolean sent = bilans.save(currentUsers.require(), id, form);
+            toasts.trigger(response, Toast.success(sent ? "Modifications enregistrées" : "Brouillon enregistré"),
+                    Map.of("bilan-saved", true));
         } catch (final IllegalArgumentException e) {
             toasts.trigger(response, Toast.error(e.getMessage()));
         }
@@ -76,20 +78,28 @@ public class BilanController {
     /** Enregistre les derniers réglages puis envoie : retour sur la fiche membre, onglet des bilans. */
     @PostMapping(EDITOR + "{id}/send")
     public ResponseEntity<Void> send(@PathVariable final UUID id, @ModelAttribute final BilanSettingsForm form,
+                                     @RequestParam(defaultValue = "") final String notify,
                                      final HttpServletRequest request, final HttpServletResponse response) {
         final CurrentUser user = currentUsers.require();
         try {
             bilans.save(user, id, form);
-            final boolean mailed = bilans.send(user, id, ServletUriComponentsBuilder.fromContextPath(request).path("/app/tracking").toUriString());
+            final String link = ServletUriComponentsBuilder.fromContextPath(request).path("/app/tracking").toUriString();
+            final BilanService.SendResult result = bilans.send(user, id, link, notify.contains("true"));
             final String target = "/app/coach/members/" + bilans.editor(user, id).memberId() + "?bilans";
-            Flash.put(request, response, target, Map.of(ToastResponses.FLASH_ATTRIBUTE, mailed
-                    ? Toast.success("Bilan envoyé à la membre")
-                    : Toast.error("Bilan disponible dans l'espace de la membre, mais l'email n'a pas pu partir")));
+            Flash.put(request, response, target, Map.of(ToastResponses.FLASH_ATTRIBUTE, toast(result)));
             return ResponseEntity.noContent().header("HX-Redirect", target).build();
         } catch (final IllegalArgumentException e) {
             toasts.trigger(response, Toast.error(e.getMessage()));
             return ResponseEntity.noContent().build();
         }
+    }
+
+    private static Toast toast(final BilanService.SendResult result) {
+        return switch (result) {
+            case MAILED -> Toast.success("Bilan envoyé à la membre");
+            case UPDATED -> Toast.success("Bilan mis à jour dans l'espace de la membre");
+            case MAIL_FAILED -> Toast.error("Bilan disponible dans l'espace de la membre, mais l'email n'a pas pu partir");
+        };
     }
 
     @DeleteMapping(EDITOR + "{id}")

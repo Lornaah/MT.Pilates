@@ -21,7 +21,7 @@
             th:text="${b.weightDelta().get()}"></span>
       <span class="badge" th:attr="data-variant=${b.sent()} ? 'success' : 'outline'" th:text="${b.sent()} ? 'Envoyé' : 'Brouillon'"></span>
       <a class="btn" data-variant="outline" data-size="sm" th:href="@{/app/coach/bilans/{id}(id=${b.id()})}"
-         th:text="${b.sent()} ? 'Voir' : 'Reprendre'"></a>
+         th:text="${b.sent()} ? 'Modifier' : 'Reprendre'"></a>
       <a th:if="${b.sent()}" class="btn" data-variant="ghost" data-size="sm" aria-label="Télécharger" th:href="@{/app/bilans/{id}/pdf(id=${b.id()})}"
          th:utext="${icons.svg('download', 'h-4 w-4')}"></a>
       <th:block th:with="dialogId=|delete-bilan-${b.id()}|">
